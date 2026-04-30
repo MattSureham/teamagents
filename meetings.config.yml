@@ -55,15 +55,18 @@ agents:
     args: ["agent", "--local", "--json", "--session-id", "{meetingId}", "-m", "{prompt}"]
     timeoutMs: 1800000
 
-
+  # ── Hermes Agent (set HERMES_HOME and HERMES_PYTHON in .env) ──
+  # Clone: git clone https://github.com/NousResearch/hermes-agent.git
+  # Then:   cd hermes-agent && python3 -m venv venv && ./venv/bin/pip install -e ".[all]"
+  # Or use the one-line installer: curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
   - id: hermes
     name: "Hermes"
     type: subprocess
     tool: generic
     capabilities: [coding, building, debugging, architecture]
-    command: /Users/matthew/hermes-agent/venv/bin/python
-    args: ["/Users/matthew/hermes-agent/run_agent.py", "-q", "{prompt}", "--max_turns", "15", "-e", "development"]
-    cwd: /Users/matthew/hermes-agent
+    command: "${HERMES_PYTHON:-python3}"
+    args: ["run_agent.py", "-q", "{prompt}", "--max_turns", "15", "-e", "development"]
+    cwd: "${HERMES_HOME:-./hermes-agent}"
     timeoutMs: 1800000
   - id: codex
     name: "Codex"
@@ -122,10 +125,36 @@ agents:
     apiKey: "${DEEPSEEK_API_KEY}"
     vision: true
 
-  - id: minimax
-    name: "MiniMax"
+  # ── MiniMax models ──
+
+  - id: minimax-m2.5
+    name: "MiniMax M2.5"
     type: llm
-    capabilities: [brainstorming, creative, design, writing, iteration]
+    capabilities: [brainstorming, creative, design, writing]
+    provider: minimax
+    model: minimax-m2.5
+    apiKey: "${MINIMAX_API_KEY}"
+
+  - id: minimax-m2.1
+    name: "MiniMax M2.1"
+    type: llm
+    capabilities: [brainstorming, creative, writing]
+    provider: minimax
+    model: minimax-m2.1
+    apiKey: "${MINIMAX_API_KEY}"
+
+  - id: minimax-m1
+    name: "MiniMax M1"
+    type: llm
+    capabilities: [brainstorming, creative, design]
+    provider: minimax
+    model: minimax-m1
+    apiKey: "${MINIMAX_API_KEY}"
+
+  - id: minimax-abab
+    name: "MiniMax ABAB6.5s"
+    type: llm
+    capabilities: [brainstorming, creative, design, writing]
     provider: minimax
     model: abab6.5s-chat
     apiKey: "${MINIMAX_API_KEY}"

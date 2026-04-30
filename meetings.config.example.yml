@@ -83,6 +83,19 @@ agents:
     args: ["run", "{prompt}", "-m", "deepseek/deepseek-v4-pro", "--dangerously-skip-permissions"]
     timeoutMs: 1800000
 
+  # Example: Python-based agent with explicit cwd and promptMode
+  # Set HERMES_HOME and HERMES_PYTHON in .env, or use the defaults below.
+  # Clone: git clone https://github.com/NousResearch/hermes-agent.git
+  # Then:   cd hermes-agent && python3 -m venv venv && ./venv/bin/pip install -e ".[all]"
+  #- id: hermes
+  #  name: "Hermes"
+  #  type: subprocess
+  #  tool: generic
+  #  capabilities: [coding, building, debugging, architecture]
+  #  command: "${HERMES_PYTHON:-python3}"
+  #  args: ["run_agent.py", "-q", "{prompt}", "--max_turns", "15", "-e", "development"]
+  #  cwd: "${HERMES_HOME:-./hermes-agent}"
+  #  timeoutMs: 1800000
 
   # ── Thinkers (LLM API — reasoning, planning, creative) ──
 

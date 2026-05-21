@@ -7,6 +7,8 @@ export function serveCommand(): Command {
     .option('-p, --port <port>', 'Port to listen on')
     .option('-c, --config <path>', 'Path to config file', './meetings.config.yml')
     .option('-d, --data-dir <path>', 'Data directory for persistence')
+    .option('--no-mcp', 'Disable the MCP server endpoint (/mcp)')
+    .option('--mcp-stdio', 'Run MCP server on stdin/stdout instead of HTTP')
     .action(async (options) => {
       const configPath = options.config;
 

@@ -9,6 +9,7 @@ import { formatLog } from '../meeting/format-log.js';
 import type { Config } from '../config/types.js';
 import type { IAgent } from '../agent/types.js';
 import { parseInlineContext } from '../utils/context-loader.js';
+import { setupMCP } from './mcp/index.js';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -22,7 +23,7 @@ const MIME: Record<string, string> = {
 
 const UI_DIR = join(import.meta.dirname, '..', '..', 'public');
 
-interface RunningMeeting {
+export interface RunningMeeting {
   engine: MeetingEngine;
   running: Promise<void> | null;
 }
@@ -67,6 +68,8 @@ export function createRouter(
     }
   }).catch(() => {});
 
+  const mcp = setupMCP(registry, store, config, meetings);
+
   const router = async function router(
     req: IncomingMessage,
     res: ServerResponse
@@ -87,6 +90,12 @@ export function createRouter(
         } else {
           json(res, 404, { error: 'File not found' });
         }
+        return;
+      }
+
+      // MCP endpoint (SSE transport)
+      if (path === '/mcp' && (method === 'GET' || method === 'POST')) {
+        await mcp.handleSSE(req, res);
         return;
       }
 

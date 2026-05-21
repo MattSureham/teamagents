@@ -212,7 +212,7 @@ schedule → PENDING → start → OPENING → POSITION → REBUTTAL ─┬→ D
 
 **REBUTTAL** — Round-robin. Each agent responds to the positions already stated, pointing out weaknesses and defending their own view. Configurable number of rounds (`maxRebuttalRounds`, default 1). Prompt: *"You have heard the positions stated so far. Please offer your rebuttal..."*
 
-**DELIBERATION** — Free-form discussion. Each agent gets one initial turn to raise points. After that, agents that indicated they want to speak more get additional turns from a FIFO queue. Capped at `maxDeliberationTurns` (default 10). Prompt: *"The floor is open for deliberation..."*
+**DELIBERATION** — Free-form discussion. Each agent gets one initial turn to raise points. After that, agents that indicated they want to speak more get additional turns from a FIFO queue. Capped at `maxDeliberationRounds` (default 3). Prompt: *"The floor is open for deliberation..."*
 
 **VOTING** — Each agent is asked a structured yes/no question about the emerging consensus. Responses are parsed for "VOTE: YES" / "VOTE: NO" to produce a tally.
 
@@ -273,21 +273,21 @@ python --version
 **macOS / Linux:**
 ```bash
 git clone https://github.com/MattSureham/teamagents.git
-cd agent-meetings
+cd teamagents
 npm install
 ```
 
 **Windows (Command Prompt):**
 ```cmd
 git clone https://github.com/MattSureham/teamagents.git
-cd agent-meetings
+cd teamagents
 npm install
 ```
 
 **Windows (PowerShell):**
 ```powershell
 git clone https://github.com/MattSureham/teamagents.git
-cd agent-meetings
+cd teamagents
 npm install
 ```
 
@@ -408,7 +408,7 @@ Run a quick test meeting to confirm everything works:
 ```bash
 npx tsx src/cli/index.ts run \
   -t "Say hello and introduce yourself in one sentence" \
-  -a deepseek \
+  -a deepseek,minimax \
   -m deepseek
 ```
 
@@ -629,8 +629,10 @@ LLM-specific fields:
 | `mode` | `debate` \| `collaboration` | `debate` | Meeting mode — debate for structured discussion, collaboration for planning + building |
 | `turnTimeoutMs` | number | 60000 | Max time an agent has to respond to a turn |
 | `maxRebuttalRounds` | number | 1 | How many rounds of rebuttal before deliberation |
-| `maxDeliberationTurns` | number | 10 | Max total turns during the deliberation phase |
-| `maxTotalTurns` | number | 50 | Hard cap on total turns across all phases — meeting forces conclusion when hit |
+| `maxDeliberationRounds` | number | 3 | How many deliberation rounds (hand-raising for more turns) |
+| `maxPlanRounds` | number | 1 | Collaboration only — plan iteration rounds |
+| `maxBuildRounds` | number | 3 | Collaboration only — build iteration rounds |
+| `maxReviewRounds` | number | 1 | Collaboration only — review iteration rounds |
 | `defaultModerator` | string | — | Agent ID to use as moderator if none specified in the meeting |
 
 ---
@@ -815,7 +817,7 @@ const meeting = new MeetingEngine({
   participants: [alice, bob],
   turnTimeoutMs: 60_000,
   maxRebuttalRounds: 1,
-  maxDeliberationTurns: 10,
+  maxDeliberationRounds: 3,
 });
 
 await meeting.start();

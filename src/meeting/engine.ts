@@ -33,6 +33,9 @@ export interface MeetingConfig {
   defaultLLM?: LLMAdapter;
   onTurnStart?: (agentName: string) => void;
   onTurnEnd?: (agentName: string) => void;
+  onTranscript?: (msg: Message) => void;
+  onPhaseChange?: (phase: MeetingPhase) => void;
+  onStatusChange?: (status: MeetingStatus) => void;
   // Resume fields
   resumeId?: string;
   resumeFrom?: ResumePoint;
@@ -117,6 +120,9 @@ export class MeetingEngine {
     this.summarizer = new Summarizer(config.defaultLLM ?? null);
     this.onTurnStart = config.onTurnStart;
     this.onTurnEnd = config.onTurnEnd;
+    this.onTranscript = config.onTranscript;
+    this.onPhaseChange = config.onPhaseChange;
+    this.onStatusChange = config.onStatusChange;
 
     // Resume state
     if (config.resumeFrom) {
@@ -155,6 +161,9 @@ export class MeetingEngine {
       defaultLLM?: LLMAdapter;
       onTurnStart?: (name: string) => void;
       onTurnEnd?: (name: string) => void;
+      onTranscript?: (msg: Message) => void;
+      onPhaseChange?: (phase: MeetingPhase) => void;
+      onStatusChange?: (status: MeetingStatus) => void;
       checkpointStore?: DataStore;
       workDir?: string;
       context?: string;
@@ -183,6 +192,9 @@ export class MeetingEngine {
       defaultLLM: options.defaultLLM,
       onTurnStart: options.onTurnStart,
       onTurnEnd: options.onTurnEnd,
+      onTranscript: options.onTranscript,
+      onPhaseChange: options.onPhaseChange,
+      onStatusChange: options.onStatusChange,
       resumeId: stored.id,
       resumeFrom: stored.resumePoint,
       resumePhase: stored.currentPhase as MeetingPhase | undefined,
@@ -216,6 +228,7 @@ export class MeetingEngine {
 
   async start(): Promise<void> {
     this.status = 'active';
+    this.onStatusChange?.('active');
 
     if (this.mode === 'collaboration') {
       await this.runCollaboration();
@@ -226,10 +239,26 @@ export class MeetingEngine {
     if (this.aborted) return;
 
     await this.advancePhase(MeetingPhase.SUMMARY);
-    await this.runSummary();
+    try {
+      await this.runSummary();
+    } catch (e) {
+      console.error('Summary generation failed:', (e as Error).message);
+      this.summary = {
+        consensus: 'Summary generation failed — see transcript for details.',
+        keyPoints: [],
+        dissentingViews: [],
+        actionItems: [],
+      };
+      this.addMessage(
+        this.moderator.systemModeratorId,
+        this.moderator.systemModeratorName,
+        `=== MEETING SUMMARY (FALLBACK) ===\nTopic: ${this.topic}\nConsensus: ${this.summary.consensus}`
+      );
+    }
     await this.advancePhase(MeetingPhase.CONCLUDED);
 
     this.status = 'concluded';
+    this.onStatusChange?.('concluded');
     this.concludedAt = Date.now();
     await this.checkpoint();
   }
@@ -346,6 +375,7 @@ export class MeetingEngine {
   cancel(): void {
     this.aborted = true;
     this.status = 'cancelled';
+    this.onStatusChange?.('cancelled');
     if (this.phaseTimeline.length > 0) {
       const current = this.phaseTimeline[this.phaseTimeline.length - 1];
       current.exitedAt = Date.now();
@@ -408,6 +438,7 @@ export class MeetingEngine {
       enteredAt: Date.now(),
       exitedAt: null,
     });
+    this.onPhaseChange?.(phase);
     await this.checkpoint();
   }
 
@@ -538,26 +569,37 @@ export class MeetingEngine {
       .map((m) => `[${m.authorName} (${m.phase})]: ${m.content}`)
       .join('\n\n');
 
-    const summary = await Promise.race([
-      this.summarizer.summarize(
-        this.topic,
-        this.context,
-        this.transcript.map((m) => ({
-          authorName: m.authorName,
-          content: m.content,
-        })),
-        [...this.agents.values()],
-        this.mode
-      ),
-      new Promise<MeetingSummary>((resolve) =>
-        setTimeout(() => resolve({
-          consensus: 'Summary generation timed out.',
-          keyPoints: [],
-          dissentingViews: [],
-          actionItems: [],
-        }), this.turnTimeoutMs)
-      ),
-    ]);
+    let summary: MeetingSummary;
+    try {
+      summary = await Promise.race([
+        this.summarizer.summarize(
+          this.topic,
+          this.context,
+          this.transcript.map((m) => ({
+            authorName: m.authorName,
+            content: m.content,
+          })),
+          [...this.agents.values()],
+          this.mode
+        ),
+        new Promise<MeetingSummary>((resolve) =>
+          setTimeout(() => resolve({
+            consensus: 'Summary generation timed out.',
+            keyPoints: [],
+            dissentingViews: [],
+            actionItems: [],
+          }), this.turnTimeoutMs)
+        ),
+      ]);
+    } catch (e) {
+      console.error('Summarizer error:', (e as Error).message);
+      summary = {
+        consensus: 'Summary generation failed — see transcript for details.',
+        keyPoints: [],
+        dissentingViews: [],
+        actionItems: [],
+      };
+    }
 
     if (this.mode !== 'collaboration') {
       const voteTally = this.summarizer.parseVotes(
@@ -615,6 +657,9 @@ export class MeetingEngine {
 
   private onTurnStart?: (agentName: string) => void;
   private onTurnEnd?: (agentName: string) => void;
+  private onTranscript?: (msg: Message) => void;
+  private onPhaseChange?: (phase: MeetingPhase) => void;
+  private onStatusChange?: (status: MeetingStatus) => void;
 
   private async promptAgent(agent: IAgent, promptText: string): Promise<void> {
     this.totalTurns++;
@@ -667,7 +712,7 @@ export class MeetingEngine {
     content: string,
     durationMs?: number
   ): void {
-    this.transcript.push({
+    const msg: Message = {
       id: randomUUID(),
       authorId,
       authorName,
@@ -675,6 +720,8 @@ export class MeetingEngine {
       phase: this.currentPhase,
       timestamp: Date.now(),
       durationMs,
-    });
+    };
+    this.transcript.push(msg);
+    this.onTranscript?.(msg);
   }
 }

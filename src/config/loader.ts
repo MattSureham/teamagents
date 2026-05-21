@@ -196,6 +196,7 @@ function validateConfig(config: Config): void {
   }
 
   // Apply defaults
+  config.server.dataDir = config.server.dataDir ?? './data';
   config.meetings.mode = config.meetings.mode ?? 'debate';
   config.meetings.maxRebuttalRounds = config.meetings.maxRebuttalRounds ?? 1;
   config.meetings.maxDeliberationRounds = config.meetings.maxDeliberationRounds ?? 3;

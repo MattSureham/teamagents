@@ -119,7 +119,8 @@ export class SubprocessManager {
 
   async healthCheck(command: string): Promise<boolean> {
     try {
-      execSync(`which ${command}`, { stdio: 'ignore' });
+      const checkCmd = process.platform === 'win32' ? `where ${command}` : `which ${command}`;
+      execSync(checkCmd, { stdio: 'ignore' });
       return true;
     } catch {
       return false;

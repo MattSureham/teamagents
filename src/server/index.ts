@@ -1,4 +1,6 @@
 import { createServer as createHTTPServer } from 'node:http';
+import { EventEmitter } from 'node:events';
+import { randomBytes } from 'node:crypto';
 import { loadConfig } from '../config/loader.js';
 import { JsonFileStore } from '../persistence/json-store.js';
 import { AgentRegistry } from './agent-registry.js';
@@ -19,10 +21,14 @@ export async function createServer(configPath?: string): Promise<ServerInstance>
   const registry = new AgentRegistry(store);
   await registry.boot(config);
 
-  const router = createRouter(registry, store, config);
+  const meetingEvents = new EventEmitter();
+
+  const router = createRouter(registry, store, config, meetingEvents);
   const httpServer = createHTTPServer(router);
 
-  const wss = setupWebSocket(httpServer, registry);
+  const wss = setupWebSocket(httpServer, registry, meetingEvents);
+
+  const authToken = randomBytes(16).toString('hex');
 
   return {
     start(): Promise<void> {
@@ -30,6 +36,7 @@ export async function createServer(configPath?: string): Promise<ServerInstance>
         httpServer.listen(config.server.port, config.server.host, () => {
           const displayHost = config.server.host === '0.0.0.0' ? 'localhost' : config.server.host;
           console.log(`Agent Meetings server listening on http://${displayHost}:${config.server.port}`);
+          console.log(`WebSocket token: ${authToken}`);
           resolve();
         });
       });
@@ -37,6 +44,7 @@ export async function createServer(configPath?: string): Promise<ServerInstance>
 
     async stop(): Promise<void> {
       return new Promise((resolve) => {
+        router.cancelAllMeetings();
         wss.close(() => {
           httpServer.close(() => {
             registry.shutdown().then(resolve).catch(resolve);

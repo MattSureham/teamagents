@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { EventEmitter } from 'node:events';
 import { readFileSync, existsSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, extname, resolve, sep } from 'node:path';
 import type { AgentRegistry } from './agent-registry.js';
@@ -50,7 +51,8 @@ interface CreateAgentBody {
 export function createRouter(
   registry: AgentRegistry,
   store: DataStore,
-  config: Config
+  config: Config,
+  events: EventEmitter
 ) {
   const meetings: Map<string, RunningMeeting> = new Map();
 
@@ -65,7 +67,7 @@ export function createRouter(
     }
   }).catch(() => {});
 
-  return async function router(
+  const router = async function router(
     req: IncomingMessage,
     res: ServerResponse
   ): Promise<void> {
@@ -219,6 +221,11 @@ export function createRouter(
           maxReviewRounds: body.maxReviewRounds ?? config.meetings.maxReviewRounds,
           defaultLLM: registry.getLLMAdapter(moderatorId) ?? undefined,
           checkpointStore: store,
+          onTranscript: (msg) => events.emit('transcript', engine.id, msg),
+          onPhaseChange: (phase) => events.emit('phase', engine.id, phase),
+          onStatusChange: (status) => events.emit('status', engine.id, status),
+          onTurnStart: (name) => events.emit('turn_start', engine.id, name),
+          onTurnEnd: (name) => events.emit('turn_end', engine.id, name),
         });
 
         await store.saveMeeting(engine.toStoredMeeting());
@@ -316,6 +323,11 @@ export function createRouter(
           defaultLLM: registry.getLLMAdapter(stored.moderatorId) ?? undefined,
           resumeId: stored.id,
           checkpointStore: store,
+          onTranscript: (msg) => events.emit('transcript', engine.id, msg),
+          onPhaseChange: (phase) => events.emit('phase', engine.id, phase),
+          onStatusChange: (status) => events.emit('status', engine.id, status),
+          onTurnStart: (name) => events.emit('turn_start', engine.id, name),
+          onTurnEnd: (name) => events.emit('turn_end', engine.id, name),
         });
 
         const running: RunningMeeting = { engine, running: null };
@@ -401,6 +413,11 @@ export function createRouter(
           maxPlanRounds: body.maxPlanRounds ?? undefined,
           maxBuildRounds: body.maxBuildRounds ?? undefined,
           maxReviewRounds: body.maxReviewRounds ?? undefined,
+          onTranscript: (msg) => events.emit('transcript', engine.id, msg),
+          onPhaseChange: (phase) => events.emit('phase', engine.id, phase),
+          onStatusChange: (status) => events.emit('status', engine.id, status),
+          onTurnStart: (name) => events.emit('turn_start', engine.id, name),
+          onTurnEnd: (name) => events.emit('turn_end', engine.id, name),
         });
 
         const running: RunningMeeting = { engine, running: null };
@@ -444,6 +461,15 @@ export function createRouter(
       json(res, 500, { error: 'Internal server error' });
     }
   };
+
+  router.cancelAllMeetings = () => {
+    for (const [id, running] of meetings) {
+      running.engine.cancel();
+    }
+    meetings.clear();
+  };
+
+  return router;
 }
 
 function saveMeetingLog(dataDir: string, engine: MeetingEngine): void {

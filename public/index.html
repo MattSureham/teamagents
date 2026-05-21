@@ -548,15 +548,153 @@ async function confirmStop() {
   showBanner('info', 'Meeting stopped.');
 }
 
-// ── Polling ──
+// ── Real-time (WebSocket + polling fallback) ──
+var ws = null;
+var wsReconnectTimer = null;
+var pollTimer = null;
+var pollFailures = 0;
+var usePolling = false;
+
 function startPolling() {
   stopPolling();
-  pollTimer = setInterval(pollMeeting, 1500);
-  pollMeeting();
+  pollFailures = 0;
+  // Try WebSocket first; fall back to polling on failure
+  if (!usePolling) {
+    connectWebSocket();
+  } else {
+    pollTimer = setInterval(pollMeeting, 1500);
+    pollMeeting();
+  }
 }
 
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+  if (ws) {
+    ws.onclose = null;
+    ws.close();
+    ws = null;
+  }
+}
+
+function connectWebSocket() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
+  var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  try {
+    ws = new WebSocket(protocol + '//' + location.host + '/ws');
+  } catch (e) {
+    fallbackToPolling();
+    return;
+  }
+
+  ws.onopen = function() {
+    if (!meetingId) return;
+    ws.send(JSON.stringify({ type: 'subscribe', meetingId: meetingId }));
+  };
+
+  ws.onmessage = function(event) {
+    var data;
+    try { data = JSON.parse(event.data); } catch (e) { return; }
+
+    if (data.type === 'subscribed') return;
+
+    if (data.type === 'meeting_event') {
+      handleWSEvent(data);
+    }
+  };
+
+  ws.onclose = function() {
+    ws = null;
+    if (!meetingId) return;
+    // Reconnect after 3s unless we fell back to polling
+    if (!usePolling) {
+      wsReconnectTimer = setTimeout(function() {
+        if (meetingId) connectWebSocket();
+      }, 3000);
+    }
+  };
+
+  ws.onerror = function() {
+    ws = null;
+    fallbackToPolling();
+  };
+}
+
+function fallbackToPolling() {
+  usePolling = true;
+  if (ws) { ws.close(); ws = null; }
+  if (!pollTimer && meetingId) {
+    pollTimer = setInterval(pollMeeting, 1500);
+    pollMeeting();
+  }
+}
+
+function handleWSEvent(data) {
+  var container = $('#transcript-container');
+
+  if (data.event === 'transcript_append') {
+    var msg = data.message;
+    if (msg.phase !== lastPhase) {
+      lastPhase = msg.phase;
+      var label = PHASE_LABELS[msg.phase] ?? msg.phase.toUpperCase();
+      var div = document.createElement('div');
+      div.className = 'phase-divider';
+      div.textContent = label;
+      container.appendChild(div);
+    }
+    container.appendChild(renderMessage(msg));
+    seenMessageCount++;
+
+    var atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    if (atBottom) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }
+
+  if (data.event === 'phase_change') {
+    lastPhase = data.phase;
+    updateStatusBarPhase(data.phase);
+  }
+
+  if (data.event === 'status_change') {
+    updateStatus(data.status);
+
+    if (data.status === 'concluded' || data.status === 'cancelled') {
+      stopPolling();
+      // Fetch final meeting state for summary
+      fetch('/meetings/' + meetingId).then(function(res) {
+        return res.json();
+      }).then(function(meeting) {
+        clearMeetingState();
+        meetingActive = false;
+        updateUIForIdle();
+        updateStatus(meeting.status);
+        if (meeting.summary) renderSummary(meeting.summary, meeting.mode, meeting);
+        if (meeting.status === 'concluded') {
+          showBanner('success', 'Meeting concluded — summary below.');
+          loadPastMeetings();
+          loadInterruptedMeetings();
+        }
+      }).catch(function() {});
+    }
+  }
+
+  if (data.event === 'turn_start') {
+    var bar = $('#status-bar');
+    bar.style.display = 'flex';
+    updateStatusBarPhase(lastPhase);
+    $('#status-bar-text').textContent = (PHASE_LABELS[lastPhase] || (lastPhase || '').toUpperCase()) + ' — Waiting for ' + data.agentName + ' to respond...';
+  }
+
+  if (data.event === 'turn_end') {
+    $('#status-bar').style.display = 'none';
+  }
+}
+
+function updateStatusBarPhase(phase) {
+  var label = PHASE_LABELS[phase] || (phase || '').toUpperCase();
+  $('#status-bar-text').textContent = label + '...';
 }
 
 let seenMessageCount = 0;
@@ -580,6 +718,13 @@ async function pollMeeting() {
     const res = await fetch(`/meetings/${meetingId}`);
     if (!res.ok) return;
     const meeting = await res.json();
+
+    // Connection restored — clear failure count and banner
+    if (pollFailures > 0) {
+      pollFailures = 0;
+      clearBanner();
+    }
+
     updateStatus(meeting.status);
 
     const container = $('#transcript-container');
@@ -630,7 +775,12 @@ async function pollMeeting() {
         loadInterruptedMeetings();
       }
     }
-  } catch(e) { /* retry next tick */ }
+  } catch(e) {
+    pollFailures++;
+    if (pollFailures >= 2) {
+      showBanner('error', 'Connection lost — retrying... (server may be down)');
+    }
+  }
 }
 
 function renderMessage(msg) {

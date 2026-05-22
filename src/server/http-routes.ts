@@ -97,7 +97,10 @@ export function createRouter(
         const fullPath = join(UI_DIR, filePath);
         if (existsSync(fullPath)) {
           const ext = extname(fullPath);
-          res.writeHead(200, { 'content-type': MIME[ext] ?? 'application/octet-stream' });
+          res.writeHead(200, {
+            'content-type': MIME[ext] ?? 'application/octet-stream',
+            'cache-control': 'no-cache, no-store, must-revalidate',
+          });
           res.end(readFileSync(fullPath));
         } else {
           json(res, 404, { error: 'File not found' });

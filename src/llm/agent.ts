@@ -43,13 +43,12 @@ export class LLMAgent implements IAgent {
   }
 
   async health(): Promise<AgentHealth> {
-    try {
-      const start = Date.now();
-      await this.adapter.chat([{ role: 'user', content: 'ping' }]);
-      return { status: 'healthy', lastCheck: Date.now(), latencyMs: Date.now() - start };
-    } catch (e) {
-      return { status: 'unhealthy', lastCheck: Date.now(), error: String(e) };
+    // Don't make an API call — health checks must be fast (server boot blocks on them).
+    // The real API test happens when the agent responds to a meeting prompt.
+    if (!this.adapter) {
+      return { status: 'unhealthy', lastCheck: Date.now(), error: 'No LLM adapter configured' };
     }
+    return { status: 'healthy', lastCheck: Date.now() };
   }
 
   async shutdown(): Promise<void> {

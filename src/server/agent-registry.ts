@@ -22,25 +22,34 @@ export class AgentRegistry {
   }
 
   async boot(config: Config): Promise<void> {
+    // Register all agents immediately (fast) — health checks run in background
+    const healthPromises: Promise<void>[] = [];
+
     for (const def of config.agents) {
       try {
         const agent = this.createAgent(def);
         this.agents.set(agent.id, agent);
 
-        const health = await agent.health();
-        await this.store.saveAgent({
-          id: agent.id,
-          name: agent.name,
-          capabilities: agent.capabilities,
-          type: agent.type,
-          status: health.status === 'healthy' || health.status === 'degraded' ? 'online' : 'offline',
-          lastHeartbeat: Date.now(),
-          registeredAt: Date.now(),
-        });
+        healthPromises.push(
+          agent.health().then(async (health) => {
+            await this.store.saveAgent({
+              id: agent.id,
+              name: agent.name,
+              capabilities: agent.capabilities,
+              type: agent.type,
+              status: health.status === 'healthy' || health.status === 'degraded' ? 'online' : 'offline',
+              lastHeartbeat: Date.now(),
+              registeredAt: Date.now(),
+            });
+          }).catch(() => {})
+        );
       } catch (e) {
         console.error(`Failed to boot agent "${def.id}":`, e);
       }
     }
+
+    // Don't block server startup on health checks — let them settle in background
+    Promise.allSettled(healthPromises).catch(() => {});
   }
 
   register(agent: IAgent): void {

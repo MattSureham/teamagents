@@ -67,18 +67,8 @@ export function setupWebSocket(
     const url = new URL(request.url ?? '/', `http://${request.headers.host}`);
 
     if (url.pathname === '/ws') {
-      // Validate auth token if configured
-      if (authToken) {
-        const token = url.searchParams.get('token');
-        if (token !== authToken) {
-          socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-          socket.destroy();
-          return;
-        }
-      }
-
       wss.handleUpgrade(request, socket, head, (ws) => {
-        handleConnection(ws, registry, subscribers, meetingAgents);
+        handleConnection(ws, registry, subscribers, meetingAgents, authToken);
       });
     } else {
       socket.destroy();
@@ -92,7 +82,8 @@ function handleConnection(
   ws: WebSocket,
   registry: AgentRegistry,
   subscribers: Map<string, Set<WebSocket>>,
-  meetingAgents: Map<string, Set<string>>
+  meetingAgents: Map<string, Set<string>>,
+  authToken?: string
 ): void {
   let agent: ProtocolAgent | null = null;
   let mode: 'agent' | 'client' | null = null;
@@ -132,6 +123,16 @@ function handleConnection(
         if (agent) {
           ws.send(JSON.stringify({ type: 'error', message: 'Already registered' }));
           return;
+        }
+
+        // validate auth token for agent registration
+        if (authToken) {
+          const suppliedToken = typeof msg.token === 'string' ? msg.token : '';
+          if (suppliedToken !== authToken) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid or missing auth token' }));
+            ws.close(4001, 'Unauthorized');
+            return;
+          }
         }
 
         mode = 'agent';

@@ -182,6 +182,7 @@
       <div class="agent-grid" id="agent-list">
         <span style="color:#6b7280;font-size:13px;padding:6px">Loading agents...</span>
       </div>
+      <noscript><div style="background:#5c2020;color:#fca5a5;padding:12px;border-radius:6px;margin-top:8px;font-size:13px"><strong>JavaScript is disabled.</strong> This app requires JavaScript.</div></noscript>
     </div>
 
     <div>
@@ -273,6 +274,10 @@
 </div>
 
 <script>
+// DEBUG: verify JS is executing
+document.getElementById('agent-list').innerHTML = '<span style="color:#fbbf24;font-size:13px;padding:6px">JS running, loading agents...</span>';
+document.getElementById('past-meetings-list').innerHTML = '<span style="color:#fbbf24;font-size:12px">JS running, loading meetings...</span>';
+
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
@@ -281,6 +286,17 @@ let pollTimer = null;
 let agents = [];
 let meetingActive = false;
 let continueFromId = null;
+
+// Timeout fallback: if agents don't load within 8s, show error
+setTimeout(function() {
+  if (agents.length === 0 && !document.querySelector('.banner-error')) {
+    var agentList = document.getElementById('agent-list');
+    if (agentList && agentList.textContent.includes('Loading agents')) {
+      showBanner('error', 'Agents failed to load. Check that the server is running on port ' + location.port + '.');
+      agentList.innerHTML = '<span style="color:#fca5a5;font-size:13px;padding:6px">Failed to load agents — see banner above</span>';
+    }
+  }
+}, 8000);
 
 // ── Init ──
 async function init() {
@@ -559,7 +575,6 @@ async function confirmStop() {
 // ── Real-time (WebSocket + polling fallback) ──
 var ws = null;
 var wsReconnectTimer = null;
-var pollTimer = null;
 var pollFailures = 0;
 var usePolling = false;
 

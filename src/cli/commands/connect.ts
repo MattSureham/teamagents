@@ -18,7 +18,7 @@ export function connectCommand(): Command {
       const capabilities = options.capabilities.split(',').map((s: string) => s.trim()).filter(Boolean);
       const responseTimeout = parseInt(options.timeout, 10);
 
-      const wsUrl = `${serverUrl}/ws?token=${encodeURIComponent(options.token)}`;
+      const wsUrl = `${serverUrl}/ws`;
 
       let ws: WebSocket | null = null;
       let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -37,6 +37,7 @@ export function connectCommand(): Command {
             id: options.id,
             name: options.name,
             capabilities,
+            token: options.token,
           }));
         });
 

@@ -496,6 +496,37 @@ OPENING → PLAN → BUILD → REVIEW → SUMMARY → CONCLUDED
 
 The `--work-dir` flag gives subprocess agents a shared directory — Claude Code and OpenClaw see each other's files and can build on previous work. Default mode is `debate` (structured discussion with positions, rebuttals, and voting).
 
+#### Git worktree isolation
+
+Instead of sharing a directory, you can create an **ephemeral git worktree** — a clean copy of your repo that's automatically created before the meeting and cleaned up after:
+
+```bash
+agent-meetings run \
+  -t "Build a REST API for a todo app" \
+  -a claude-code,codex \
+  --mode collaboration \
+  --worktree
+```
+
+With `--worktree`, the framework:
+1. Creates a git worktree under `data/worktrees/<meeting-id>/`
+2. Optionally runs a setup command (e.g., `npm install`)
+3. Sets `$MEETING_WORKTREE` env var so subprocess agents know the isolated path
+4. On meeting end: optionally archives changes to a `meeting/<id>` branch, then removes the worktree
+
+Configure worktree defaults in `meetings.config.yml`:
+
+```yaml
+meetings:
+  worktree:
+    enabled: false              # set true to always isolate
+    baseRef: HEAD               # git ref to branch from (default: HEAD)
+    setupCommand: "npm install" # run after creation
+    archiveOnTeardown: true     # commit changes before cleanup
+```
+
+The web UI also has an "Isolate in git worktree" checkbox in the working directory section.
+
 What you'll see:
 
 ```
@@ -561,6 +592,65 @@ npm stop
 # On Windows, use Ctrl+C in the server terminal instead
 ```
 
+### Remote agents (connect from another machine)
+
+Any process can join a meeting as a participant by connecting to the server over WebSocket. The `connect` command makes this a one-liner:
+
+```bash
+# On the server machine
+npm start -- --ws-token mytoken
+
+# On any other machine
+am connect \
+  --server ws://server-ip:4200 \
+  --token mytoken \
+  --id remote-bot \
+  --name "Remote Claude" \
+  --command "claude -p"
+```
+
+The remote agent receives meeting prompts, responds via the subprocess, and sees other agents' messages in real-time. It auto-reconnects on disconnect.
+
+**Interactive mode** (no `--command`):
+
+```bash
+am connect --server ws://localhost:4200 --token mytoken --id human-1 --name "Human"
+```
+
+Prompts are printed to stdout; type your response and end with a line containing only `.` to submit.
+
+**Auth token:** The server prints the token at startup. Set a fixed one with `--ws-token` on the serve command or `wsToken` in the server config. If no token is configured, all connections are allowed (dev mode).
+
+**Protocol agents in config:** You can pre-define protocol agents in your config so they appear in the web UI agent picker before connecting:
+
+```yaml
+agents:
+  - id: remote-bot
+    name: "Remote Bot"
+    type: protocol
+    capabilities: [coding, typescript]
+    timeoutMs: 120000
+```
+
+When the real WebSocket agent connects with a matching ID, it replaces the offline placeholder.
+
+### MCP server (programmatic control)
+
+The server exposes an MCP endpoint at `http://localhost:4200/mcp` with 8 tools for programmatic meeting management. Point any MCP-compatible tool (Claude Code, Cursor, Zed) at this URL to create and manage meetings from your editor.
+
+| Tool | Description |
+|------|-------------|
+| `create_meeting` | Create and start a new meeting |
+| `list_meetings` | List meetings, filter by status |
+| `get_meeting` | Full meeting details including transcript |
+| `cancel_meeting` | Cancel a running meeting |
+| `resume_meeting` | Resume an interrupted or concluded meeting |
+| `list_agents` | All registered agents with capabilities |
+| `get_agent` | Details for a specific agent |
+| `get_server_info` | WebSocket URL, auth token, and connect command |
+
+Disable MCP with `--no-mcp` on the serve command.
+
 ### Web Console
 
 Agent Meetings includes a built-in web UI at `http://127.0.0.1:4200/` — no extra setup required.
@@ -591,6 +681,7 @@ Full annotated example at [meetings.config.example.yml](meetings.config.example.
 | `port` | number | 4200 | HTTP + WebSocket port |
 | `host` | string | "0.0.0.0" | Bind address |
 | `dataDir` | string | "./data" | Where meeting files and agent state are saved |
+| `wsToken` | string | — | Fixed WebSocket auth token for remote agents (random if omitted) |
 
 ### `agents` (array)
 
@@ -600,7 +691,7 @@ Common fields for all agent types:
 |-------|------|-------------|
 | `id` | string | Unique identifier (used in `--agents` flag) |
 | `name` | string | Display name (appears in transcript) |
-| `type` | `subprocess` \| `llm` | Agent type |
+| `type` | `subprocess` \| `llm` \| `browser` \| `protocol` | Agent type |
 | `capabilities` | string[] | Skills/topics this agent can contribute to |
 
 Subprocess-specific fields:
@@ -634,6 +725,10 @@ LLM-specific fields:
 | `maxBuildRounds` | number | 3 | Collaboration only — build iteration rounds |
 | `maxReviewRounds` | number | 1 | Collaboration only — review iteration rounds |
 | `defaultModerator` | string | — | Agent ID to use as moderator if none specified in the meeting |
+| `worktree.enabled` | boolean | false | Always isolate in git worktrees |
+| `worktree.baseRef` | string | HEAD | Git ref to branch worktrees from |
+| `worktree.setupCommand` | string | — | Shell command to run after worktree creation |
+| `worktree.archiveOnTeardown` | boolean | false | Commit worktree changes to meeting/<id> branch on cleanup |
 
 ---
 
@@ -650,6 +745,7 @@ agent-meetings run -t <topic> -a <agent-ids> [options]
   -c, --config <path>          Path to config file (default: ./meetings.config.yml)
   --mode <mode>                Meeting mode: debate (default) or collaboration
   --work-dir <path>            Shared working directory for agents to build in (collaboration mode)
+  --worktree                   Create an isolated git worktree as the working directory
   --turn-timeout <ms>          Turn timeout in ms (default: 60000)
   --rebuttal-rounds <n>        Max rebuttal rounds (default: 1)
   --deliberation-turns <n>     Max deliberation turns (default: 10)
@@ -664,10 +760,12 @@ agent-meetings resume <meeting-id> [options]
   --no-stream                  Only show summary, not live transcript
 
 agent-meetings serve [options]
-  Start the persistent server (for multiple meetings, WS agents).
+  Start the persistent server (for multiple meetings, WS agents, web UI, MCP).
   -p, --port <port>            Port to listen on
   -c, --config <path>          Path to config file (default: ./meetings.config.yml)
   -d, --data-dir <path>        Data directory for persistence
+  --ws-token <token>           Fixed WebSocket auth token for remote agents (random if omitted)
+  --no-mcp                     Disable the MCP server endpoint (/mcp)
 
 agent-meetings schedule -t <topic> -a <agent-ids> [options]
   Schedule a meeting on a running server.
@@ -690,13 +788,27 @@ agent-meetings config validate
 
 agent-meetings config show
   -c, --config <path>          Print effective config (API keys masked)
+
+agent-meetings config discover
+  Detect installed CLI tools on your PATH (Claude Code, Codex, etc.)
+  and show which ones are configured vs. available but unused.
+
+agent-meetings connect [options]
+  Connect as a remote agent to a running server over WebSocket.
+  --server <url>               WebSocket server URL (e.g. ws://localhost:4200)
+  --token <token>              WebSocket auth token
+  --id <id>                    Agent ID to register as
+  --name <name>                Display name for this agent
+  --command <cmd>              Shell command to run for each prompt (receives prompt via stdin)
+  --capabilities <list>        Comma-separated list of capabilities (default: general)
+  --timeout <ms>               Response timeout in ms (default: 120000)
 ```
 
 ---
 
 ## WebSocket Protocol (for external agents)
 
-Connect to `ws://<host>:<port>/ws`.
+Connect to `ws://<host>:<port>/ws?token=<token>`. The token query param is required when the server has a `wsToken` configured. Without a configured token, all connections are allowed (dev mode).
 
 ### Messages from agent to server
 

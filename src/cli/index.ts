@@ -8,6 +8,7 @@ import { viewCommand } from './commands/view.js';
 import { configCommand } from './commands/config.js';
 import { runCommand } from './commands/run.js';
 import { resumeCommand } from './commands/resume.js';
+import { connectCommand } from './commands/connect.js';
 import { browserSetupCommand } from './commands/browser-setup.js';
 
 const program = new Command();
@@ -20,6 +21,7 @@ program
 
 program.addCommand(runCommand());
 program.addCommand(resumeCommand());
+program.addCommand(connectCommand());
 program.addCommand(browserSetupCommand());
 program.addCommand(serveCommand());
 program.addCommand(scheduleCommand());

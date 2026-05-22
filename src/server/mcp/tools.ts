@@ -258,6 +258,26 @@ export function registerAllTools(
   );
 
   server.registerTool(
+    'get_server_info',
+    {
+      description: 'Get server connection info (WebSocket URL, auth token) for remote agent access',
+      inputSchema: {},
+    },
+    async () => ({
+      content: [{
+        type: 'text' as const,
+        text: JSON.stringify({
+          host: ctx.config.server.host,
+          port: ctx.config.server.port,
+          wsToken: ctx.config.server.wsToken ?? '(randomly generated at startup)',
+          wsUrl: `ws://${ctx.config.server.host === '0.0.0.0' ? 'localhost' : ctx.config.server.host}:${ctx.config.server.port}/ws`,
+          connectCommand: `am connect --server ws://${ctx.config.server.host === '0.0.0.0' ? 'localhost' : ctx.config.server.host}:${ctx.config.server.port} --token <token> --id <agent-id> --name "<Agent Name>"`,
+        }, null, 2),
+      }],
+    })
+  );
+
+  server.registerTool(
     'list_agents',
     { description: 'List all registered agents with their capabilities', inputSchema: {} },
     async () => handleListAgents({} as Record<string, never>, ctx)

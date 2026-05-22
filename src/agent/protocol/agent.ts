@@ -7,16 +7,18 @@ export class ProtocolAgent implements IAgent {
   readonly name: string;
   readonly capabilities: string[];
   private ws: WebSocket;
+  private timeoutMs: number;
   private pendingRequests: Map<
     string,
     { resolve: (value: AgentResponse) => void; reject: (reason: Error) => void }
   > = new Map();
 
-  constructor(ws: WebSocket, id: string, name: string, capabilities: string[]) {
+  constructor(ws: WebSocket, id: string, name: string, capabilities: string[], timeoutMs = 60_000) {
     this.ws = ws;
     this.id = id;
     this.name = name;
     this.capabilities = capabilities;
+    this.timeoutMs = timeoutMs;
 
     this.ws.on('message', (data) => {
       try {
@@ -50,7 +52,7 @@ export class ProtocolAgent implements IAgent {
         resolve({
           content: `[${this.name} did not respond within the time limit]`,
         });
-      }, 60_000);
+      }, this.timeoutMs);
 
       this.pendingRequests.set(requestId, {
         resolve: (value) => {

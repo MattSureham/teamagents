@@ -1,6 +1,6 @@
 import type { IAgent } from '../agent/types.js';
 import type { LLMAdapter } from '../llm/types.js';
-import type { Config, AgentDef, SubprocessAgentDef, LLMAgentDef, BrowserAgentDef } from '../config/types.js';
+import type { Config, AgentDef, SubprocessAgentDef, LLMAgentDef, BrowserAgentDef, ProtocolAgentDef } from '../config/types.js';
 import type { DataStore } from '../persistence/types.js';
 import { SubprocessAgent } from '../agent/subprocess/adapter.js';
 import { parseOpenClawOutput } from '../agent/subprocess/integrations/generic.js';
@@ -124,7 +124,24 @@ export class AgentRegistry {
     if (def.type === 'browser') {
       return this.createBrowserAgent(def);
     }
+    if (def.type === 'protocol') {
+      return this.createProtocolPlaceholder(def);
+    }
     throw new Error(`Unknown agent type for "${(def as AgentDef).id}"`);
+  }
+
+  private createProtocolPlaceholder(def: ProtocolAgentDef): IAgent {
+    return {
+      id: def.id,
+      name: def.name,
+      capabilities: def.capabilities,
+      type: 'protocol',
+      respond: async () => ({
+        content: `[${def.name} is not connected]`,
+      }),
+      health: async () => ({ status: 'offline', lastCheck: Date.now() }),
+      shutdown: async () => {},
+    };
   }
 
   private createSubprocessAgent(def: SubprocessAgentDef): SubprocessAgent {

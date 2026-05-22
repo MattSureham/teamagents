@@ -271,6 +271,7 @@ export function createRouter(
 
         const running: RunningMeeting = { engine, running: null };
         meetings.set(engine.id, running);
+        events.emit('meeting_started', engine.id, engine.participantIds);
 
         const autoStart = body.autoStart !== false;
         if (autoStart) {
@@ -372,6 +373,7 @@ export function createRouter(
 
         const running: RunningMeeting = { engine, running: null };
         meetings.set(engine.id, running);
+        events.emit('meeting_started', engine.id, engine.participantIds);
         engine.status = 'active';
         running.running = engine.start().then(() => {
           store.saveMeeting(engine.toStoredMeeting()).catch(() => {});
@@ -462,6 +464,7 @@ export function createRouter(
 
         const running: RunningMeeting = { engine, running: null };
         meetings.set(engine.id, running);
+        events.emit('meeting_started', engine.id, engine.participantIds);
 
         running.running = engine.start().then(() => {
           store.saveMeeting(engine.toStoredMeeting()).catch(() => {});

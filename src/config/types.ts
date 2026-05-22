@@ -2,6 +2,7 @@ export interface ServerConfig {
   port: number;
   host: string;
   dataDir: string;
+  wsToken?: string;
 }
 
 export interface SubprocessAgentDef {
@@ -39,7 +40,15 @@ export interface BrowserAgentDef {
   timeoutMs?: number;
 }
 
-export type AgentDef = SubprocessAgentDef | LLMAgentDef | BrowserAgentDef;
+export interface ProtocolAgentDef {
+  id: string;
+  name: string;
+  type: 'protocol';
+  capabilities: string[];
+  timeoutMs?: number;
+}
+
+export type AgentDef = SubprocessAgentDef | LLMAgentDef | BrowserAgentDef | ProtocolAgentDef;
 
 export interface MeetingsConfig {
   mode: 'debate' | 'collaboration';

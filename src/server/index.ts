@@ -27,9 +27,8 @@ export async function createServer(configPath?: string): Promise<ServerInstance>
   const router = createRouter(registry, store, config, meetingEvents);
   const httpServer = createHTTPServer(router);
 
-  const wss = setupWebSocket(httpServer, registry, meetingEvents);
-
-  const authToken = randomBytes(16).toString('hex');
+  const authToken = config.server.wsToken ?? randomBytes(16).toString('hex');
+  const wss = setupWebSocket(httpServer, registry, meetingEvents, authToken);
 
   return {
     start(): Promise<void> {

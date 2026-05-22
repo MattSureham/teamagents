@@ -8,15 +8,36 @@ import type { EventEmitter } from 'node:events';
 export function setupWebSocket(
   httpServer: HTTPServer,
   registry: AgentRegistry,
-  events: EventEmitter
+  events: EventEmitter,
+  authToken?: string
 ): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
 
   const subscribers = new Map<string, Set<WebSocket>>();
+  const meetingAgents = new Map<string, Set<string>>();
+
+  // Track which agents are in which meeting
+  events.on('meeting_started', (meetingId: string, participantIds: string[]) => {
+    meetingAgents.set(meetingId, new Set(participantIds));
+  });
 
   // Listen for meeting events and broadcast to subscribers
-  events.on('transcript', (meetingId: string, msg: unknown) => {
+  events.on('transcript', (meetingId: string, msg: any) => {
     broadcast(meetingId, { type: 'meeting_event', event: 'transcript_append', meetingId, message: msg });
+
+    // Forward transcript to protocol agents in this meeting
+    const participants = meetingAgents.get(meetingId);
+    if (participants && msg.authorId) {
+      for (const agent of registry.list()) {
+        if (agent.type === 'protocol' && participants.has(agent.id) && agent.id !== msg.authorId) {
+          (agent as any).sendUpdate?.(meetingId, {
+            id: msg.id,
+            authorName: msg.authorName,
+            content: msg.content,
+          });
+        }
+      }
+    }
   });
   events.on('phase', (meetingId: string, phase: string) => {
     broadcast(meetingId, { type: 'meeting_event', event: 'phase_change', meetingId, phase });
@@ -46,8 +67,18 @@ export function setupWebSocket(
     const url = new URL(request.url ?? '/', `http://${request.headers.host}`);
 
     if (url.pathname === '/ws') {
+      // Validate auth token if configured
+      if (authToken) {
+        const token = url.searchParams.get('token');
+        if (token !== authToken) {
+          socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+          socket.destroy();
+          return;
+        }
+      }
+
       wss.handleUpgrade(request, socket, head, (ws) => {
-        handleConnection(ws, registry, subscribers);
+        handleConnection(ws, registry, subscribers, meetingAgents);
       });
     } else {
       socket.destroy();
@@ -60,7 +91,8 @@ export function setupWebSocket(
 function handleConnection(
   ws: WebSocket,
   registry: AgentRegistry,
-  subscribers: Map<string, Set<WebSocket>>
+  subscribers: Map<string, Set<WebSocket>>,
+  meetingAgents: Map<string, Set<string>>
 ): void {
   let agent: ProtocolAgent | null = null;
   let mode: 'agent' | 'client' | null = null;
@@ -114,9 +146,14 @@ function handleConnection(
           return;
         }
 
-        if (registry.get(id)) {
+        const existing = registry.get(id);
+        if (existing && existing.type !== 'protocol') {
           ws.send(JSON.stringify({ type: 'error', message: `Agent "${id}" is already registered` }));
           return;
+        }
+        // Replace an offline protocol placeholder with the live connection
+        if (existing) {
+          registry.unregister(id).catch(() => {});
         }
 
         agent = new ProtocolAgent(ws, id, name, capabilities);

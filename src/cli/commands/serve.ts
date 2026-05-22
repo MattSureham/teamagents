@@ -9,6 +9,7 @@ export function serveCommand(): Command {
     .option('-d, --data-dir <path>', 'Data directory for persistence')
     .option('--no-mcp', 'Disable the MCP server endpoint (/mcp)')
     .option('--mcp-stdio', 'Run MCP server on stdin/stdout instead of HTTP')
+    .option('--ws-token <token>', 'Fixed WebSocket auth token (random if omitted)')
     .action(async (options) => {
       const configPath = options.config;
 

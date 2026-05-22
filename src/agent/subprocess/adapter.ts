@@ -42,28 +42,42 @@ export class SubprocessAgent implements IAgent {
       return this.respondViaFile(prompt, promptText);
     }
     if (this.config.promptMode === 'stdin') {
-      return this.respondViaStdin(promptText);
+      return this.respondViaStdin(prompt, promptText);
     }
 
     // Argument mode — if prompt is too large for the Windows command line, fall back to stdin
     if (promptText.length > 28000) {
-      return this.respondViaStdinFallback(promptText);
+      return this.respondViaStdinFallback(prompt, promptText);
     }
     // On Windows, multi-line arguments get mangled by CreateProcess command-line joining
     if (process.platform === 'win32' && promptText.includes('\n')) {
-      return this.respondViaStdinFallback(promptText);
+      return this.respondViaStdinFallback(prompt, promptText);
     }
     return this.respondViaArgs(prompt);
   }
 
-  private async respondViaStdinFallback(promptText: string): Promise<AgentResponse> {
+  /** Effective cwd: per-meeting worktree path takes precedence over agent config. */
+  private effectiveCwd(prompt: MeetingPrompt): string | undefined {
+    return prompt.workDir ?? this.config.cwd;
+  }
+
+  /** Effective env: inherit agent config env, inject $MEETING_WORKTREE if set. */
+  private effectiveEnv(prompt: MeetingPrompt): Record<string, string> | undefined {
+    const base = this.config.env ? { ...this.config.env } : undefined;
+    if (prompt.workDir) {
+      return { ...base, MEETING_WORKTREE: prompt.workDir };
+    }
+    return base;
+  }
+
+  private async respondViaStdinFallback(prompt: MeetingPrompt, promptText: string): Promise<AgentResponse> {
     const args = this.buildStdinArgs();
 
     const result = await this.manager.run({
       command: this.config.command,
       args,
-      cwd: this.config.cwd,
-      env: this.config.env,
+      cwd: this.effectiveCwd(prompt),
+      env: this.effectiveEnv(prompt),
       timeoutMs: this.config.timeoutMs,
       input: promptText,
     });
@@ -100,8 +114,8 @@ export class SubprocessAgent implements IAgent {
     const result = await this.manager.run({
       command: this.config.command,
       args,
-      cwd: this.config.cwd,
-      env: this.config.env,
+      cwd: this.effectiveCwd(prompt),
+      env: this.effectiveEnv(prompt),
       timeoutMs: this.config.timeoutMs,
     });
 
@@ -138,13 +152,13 @@ export class SubprocessAgent implements IAgent {
     return result;
   }
 
-  private async respondViaStdin(promptText: string): Promise<AgentResponse> {
+  private async respondViaStdin(prompt: MeetingPrompt, promptText: string): Promise<AgentResponse> {
     const args = this.buildStdinArgs();
     const result = await this.manager.run({
       command: this.config.command,
       args,
-      cwd: this.config.cwd,
-      env: this.config.env,
+      cwd: this.effectiveCwd(prompt),
+      env: this.effectiveEnv(prompt),
       timeoutMs: this.config.timeoutMs,
       input: promptText,
     });
@@ -167,8 +181,8 @@ export class SubprocessAgent implements IAgent {
       const result = await this.manager.run({
         command: this.config.command,
         args,
-        cwd: this.config.cwd,
-        env: this.config.env,
+        cwd: this.effectiveCwd(prompt),
+        env: this.effectiveEnv(prompt),
         timeoutMs: this.config.timeoutMs,
       });
 

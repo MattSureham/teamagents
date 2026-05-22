@@ -203,6 +203,11 @@
         <input type="text" id="workdir" placeholder="e.g. ./workspace/my-project" style="flex:1">
         <button class="btn btn-outline btn-sm" id="btn-browse" title="Browse folders">Browse</button>
       </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="worktree" style="width:auto">
+        <label for="worktree" style="margin:0;font-size:13px;cursor:pointer">Isolate in git worktree</label>
+        <span style="color:#6b7280;font-size:11px">(ephemeral copy of the repo, cleaned up after meeting)</span>
+      </div>
       <div id="dir-browser" style="display:none;margin-top:6px;background:#1c1e26;border:1px solid #2d3039;border-radius:6px;padding:8px;max-height:180px;overflow-y:auto">
         <div id="dir-browser-path" style="font-size:11px;color:#6b7280;margin-bottom:6px;word-break:break-all"></div>
         <div id="dir-browser-entries"></div>
@@ -432,6 +437,7 @@ async function startMeeting() {
   const mode = getMode();
   const workDir = $('#workdir').value.trim() || undefined;
   const buildRounds = parseInt($('#build-rounds').value) || 3;
+  const worktree = $('#worktree').checked || undefined;
 
   if (!topic || participantIds.length < 2) return;
 
@@ -451,11 +457,13 @@ async function startMeeting() {
       moderatorId: moderatorId,
       mode: mode,
       maxBuildRounds: buildRounds,
+      worktree: worktree,
     });
   } else {
     body = JSON.stringify({
       topic, context, participantIds, moderatorId,
       autoStart: true, mode, workDir, maxBuildRounds: buildRounds,
+      worktree: worktree,
     });
   }
 

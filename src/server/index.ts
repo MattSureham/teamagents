@@ -20,6 +20,7 @@ export async function createServer(configPath?: string): Promise<ServerInstance>
 
   const registry = new AgentRegistry(store);
   await registry.boot(config);
+  registry.printDetectedHints();
 
   const meetingEvents = new EventEmitter();
 

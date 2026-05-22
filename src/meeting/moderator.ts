@@ -15,6 +15,10 @@ export class Moderator {
 
   get activeWorkDir(): string | null { return this.workDir; }
 
+  setWorkDir(path: string): void {
+    this.workDir = path;
+  }
+
   systemModeratorId = '__system_moderator__';
   systemModeratorName = 'Moderator';
 

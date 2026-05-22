@@ -23,7 +23,7 @@ export interface LLMAgentDef {
   name: string;
   type: 'llm';
   capabilities: string[];
-  provider: 'anthropic' | 'openai' | 'gemini' | 'ollama' | 'openai-compat' | 'deepseek' | 'minimax' | 'qwen' | 'kimi' | 'kimi-code';
+  provider: string;
   model: string;
   apiKey: string;
   endpoint?: string;
@@ -51,6 +51,12 @@ export interface MeetingsConfig {
   maxReviewRounds: number;
   defaultModerator: string;
   presets?: Record<string, { agents: string[]; moderator?: string }>;
+  worktree?: {
+    enabled?: boolean;
+    baseRef?: string;
+    setupCommand?: string;
+    archiveOnTeardown?: boolean;
+  };
 }
 
 export interface Config {

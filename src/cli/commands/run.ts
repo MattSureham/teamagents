@@ -8,6 +8,7 @@ import { MeetingEngine } from '../../meeting/engine.js';
 import { formatLog } from '../../meeting/format-log.js';
 import type { IAgent } from '../../agent/types.js';
 import { loadContext } from '../../utils/context-loader.js';
+import { WorktreeManager } from '../../worktree/manager.js';
 
 export function runCommand(): Command {
   return new Command('run')
@@ -26,6 +27,7 @@ export function runCommand(): Command {
     .option('--review-rounds <n>', 'Max review rounds (collaboration)', '1')
     .option('--mode <mode>', 'Meeting mode: debate or collaboration', 'debate')
     .option('--work-dir <path>', 'Shared working directory for agents to build in (collaboration mode)')
+    .option('--worktree', 'Create an isolated git worktree as the working directory (collaboration mode)')
     .option('--no-stream', 'Do not stream transcript; only show summary at the end')
     .action(async (options) => {
       let config;
@@ -155,6 +157,23 @@ export function runCommand(): Command {
         },
       });
 
+      // Git worktree isolation
+      const worktrees = new WorktreeManager();
+      if (options.worktree) {
+        try {
+          const wtPath = worktrees.create(engine.id, config.server.dataDir, {
+            baseRef: config.meetings.worktree?.baseRef,
+            setupCommand: config.meetings.worktree?.setupCommand,
+            archiveOnTeardown: config.meetings.worktree?.archiveOnTeardown,
+          });
+          worktrees.setup(wtPath, config.meetings.worktree?.setupCommand);
+          engine.setWorkDir(wtPath);
+          console.error(`Worktree created at: ${wtPath}`);
+        } catch (e) {
+          console.error('Failed to create worktree:', (e as Error).message);
+        }
+      }
+
       const phaseLabels: Record<string, string> = {
         opening: 'OPENING — topic introduction',
         position: 'POSITION — agents state their views',
@@ -203,6 +222,14 @@ export function runCommand(): Command {
       try {
         await engine.start();
       } finally {
+        // Teardown worktree if one was created
+        const wtPath = worktrees.get(engine.id);
+        if (wtPath) {
+          worktrees.teardown(engine.id, wtPath, {
+            archiveOnTeardown: config.meetings.worktree?.archiveOnTeardown,
+          });
+        }
+
         // Save the full meeting record before shutting down
         try {
           const stored = engine.toStoredMeeting();

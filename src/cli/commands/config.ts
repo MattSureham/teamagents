@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { loadConfig } from '../../config/loader.js';
+import { ProviderRegistry } from '../../server/provider-registry.js';
 
 export function configCommand(): Command {
   const cmd = new Command('config')
@@ -38,6 +39,39 @@ export function configCommand(): Command {
       } catch (e) {
         console.error('Failed to load config:', (e as Error).message);
         process.exit(1);
+      }
+    });
+
+  cmd
+    .command('discover')
+    .description('Detect installed subprocess tools (Claude Code, Codex, etc.)')
+    .action(async () => {
+      const registry = new ProviderRegistry();
+      const detected = registry.detectInstalled();
+
+      console.log('\nSubprocess tools:');
+      for (const [id, entry] of registry.listSubprocessTools()) {
+        const found = detected.includes(id);
+        console.log(`  ${found ? '✓' : '✗'} ${id} — ${entry.name}`);
+        if (found) {
+          console.log(`      command: ${entry.command}`);
+          console.log(`      timeout: ${Math.round(entry.defaultTimeoutMs / 1000)}s`);
+        }
+      }
+
+      console.log('\nLLM providers:');
+      for (const [id, entry] of registry.listLLMProviders()) {
+        console.log(`  • ${id} — ${entry.name} (default: ${entry.defaultModel})`);
+      }
+
+      console.log('\nBrowser sites:');
+      for (const [id, entry] of registry.listBrowserSites()) {
+        console.log(`  • ${id} — ${entry.name}`);
+      }
+
+      console.log(`\n${detected.length} tool(s) detected on PATH.`);
+      if (detected.length > 0) {
+        console.log('Add detected tools to meetings.config.yml to use them as agents.');
       }
     });
 

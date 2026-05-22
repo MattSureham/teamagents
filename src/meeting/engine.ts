@@ -94,6 +94,7 @@ export class MeetingEngine {
   private totalTurns = 0;
   reasonEnded: 'completed' | 'cancelled' = 'completed';
   currentTurn: string | null = null;
+  workDir: string | undefined;
 
   private resumePoint: ResumePoint = { rebuttalRound: 0 };
   private checkpointStore: DataStore | null = null;
@@ -117,6 +118,7 @@ export class MeetingEngine {
 
     this.agents = new Map(config.participants.map((a) => [a.id, a]));
     this.moderator = new Moderator(config.defaultLLM ?? null, this.mode, config.workDir ?? null);
+    this.workDir = config.workDir;
     this.summarizer = new Summarizer(config.defaultLLM ?? null);
     this.onTurnStart = config.onTurnStart;
     this.onTurnEnd = config.onTurnEnd;
@@ -372,6 +374,11 @@ export class MeetingEngine {
     }
   }
 
+  setWorkDir(path: string): void {
+    this.workDir = path;
+    this.moderator.setWorkDir(path);
+  }
+
   cancel(): void {
     this.aborted = true;
     this.status = 'cancelled';
@@ -414,7 +421,7 @@ export class MeetingEngine {
         maxBuildRounds: this.maxBuildRounds,
         maxReviewRounds: this.maxReviewRounds,
         mode: this.mode,
-        workDir: this.moderator.activeWorkDir ?? undefined,
+        workDir: this.workDir,
       },
       turnManagerState: this.turnManager.toJSON(),
       resumePoint: { ...this.resumePoint },
@@ -689,6 +696,7 @@ export class MeetingEngine {
         transcript: transcriptMessages,
         speakingOrder: this.participantIds,
         currentPrompt: promptText,
+        workDir: this.workDir,
       });
 
       this.addMessage(agent.id, agent.name, response.content, Date.now() - started);

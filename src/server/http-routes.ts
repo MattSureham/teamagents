@@ -10,6 +10,7 @@ import type { Config } from '../config/types.js';
 import type { IAgent } from '../agent/types.js';
 import { parseInlineContext } from '../utils/context-loader.js';
 import { setupMCP } from './mcp/index.js';
+import { WorktreeManager } from '../worktree/manager.js';
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -37,6 +38,7 @@ interface CreateMeetingBody {
   autoStart?: boolean;
   mode?: 'debate' | 'collaboration';
   workDir?: string;
+  worktree?: boolean;
   maxPlanRounds?: number;
   maxBuildRounds?: number;
   maxReviewRounds?: number;
@@ -56,6 +58,16 @@ export function createRouter(
   events: EventEmitter
 ) {
   const meetings: Map<string, RunningMeeting> = new Map();
+  const worktrees = new WorktreeManager();
+
+  function teardownWorktree(meetingId: string): void {
+    const path = worktrees.get(meetingId);
+    if (path) {
+      worktrees.teardown(meetingId, path, {
+        archiveOnTeardown: config.meetings.worktree?.archiveOnTeardown,
+      });
+    }
+  }
 
   // Detect interrupted meetings from a previous server run
   store.listMeetings({ status: 'active' }).then((active) => {
@@ -214,6 +226,7 @@ export function createRouter(
           }
         }
 
+        // Construct engine first so we have engine.id for worktree keying
         const engine = new MeetingEngine({
           topic: body.topic,
           context: contextText,
@@ -232,10 +245,27 @@ export function createRouter(
           checkpointStore: store,
           onTranscript: (msg) => events.emit('transcript', engine.id, msg),
           onPhaseChange: (phase) => events.emit('phase', engine.id, phase),
-          onStatusChange: (status) => events.emit('status', engine.id, status),
+          onStatusChange: (status) => {
+            events.emit('status', engine.id, status);
+            if (status === 'concluded' || status === 'cancelled') {
+              teardownWorktree(engine.id);
+            }
+          },
           onTurnStart: (name) => events.emit('turn_start', engine.id, name),
           onTurnEnd: (name) => events.emit('turn_end', engine.id, name),
         });
+
+        // If worktree requested, create after engine construction so we can use engine.id as key
+        const worktreeEnabled = body.worktree ?? config.meetings.worktree?.enabled ?? false;
+        if (worktreeEnabled) {
+          const wtPath = worktrees.create(engine.id, config.server.dataDir, {
+            baseRef: config.meetings.worktree?.baseRef,
+            setupCommand: config.meetings.worktree?.setupCommand,
+            archiveOnTeardown: config.meetings.worktree?.archiveOnTeardown,
+          });
+          worktrees.setup(wtPath, config.meetings.worktree?.setupCommand);
+          engine.setWorkDir(wtPath);
+        }
 
         await store.saveMeeting(engine.toStoredMeeting());
 
@@ -248,6 +278,7 @@ export function createRouter(
             meetings.delete(engine.id);
             store.saveMeeting(engine.toStoredMeeting()).catch(() => {});
             saveMeetingLog(config.server.dataDir, engine);
+            teardownWorktree(engine.id);
           });
         }
 
@@ -452,6 +483,7 @@ export function createRouter(
         const running = meetings.get(id);
         if (running) {
           running.engine.cancel();
+          teardownWorktree(id);
           await store.saveMeeting(running.engine.toStoredMeeting());
           saveMeetingLog(config.server.dataDir, running.engine);
           return json(res, 200, { id, status: 'cancelled' });
@@ -474,6 +506,7 @@ export function createRouter(
   router.cancelAllMeetings = () => {
     for (const [id, running] of meetings) {
       running.engine.cancel();
+      teardownWorktree(id);
     }
     meetings.clear();
   };

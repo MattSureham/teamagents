@@ -1,22 +1,13 @@
 import type { IAgent } from '../agent/types.js';
 import type { LLMAdapter } from '../llm/types.js';
 import type { Config, AgentDef, SubprocessAgentDef, LLMAgentDef, BrowserAgentDef } from '../config/types.js';
-import type { DataStore, StoredAgent } from '../persistence/types.js';
+import type { DataStore } from '../persistence/types.js';
 import { SubprocessAgent } from '../agent/subprocess/adapter.js';
 import { parseOpenClawOutput } from '../agent/subprocess/integrations/generic.js';
 import { LLMAgent } from '../llm/agent.js';
-import { AnthropicAdapter } from '../llm/anthropic.js';
-import { OpenAIAdapter } from '../llm/openai.js';
-import { GeminiAdapter } from '../llm/gemini.js';
-import { OllamaAdapter } from '../llm/ollama.js';
-import { DeepSeekAdapter } from '../llm/deepseek.js';
-import { MinimaxAdapter } from '../llm/minimax.js';
-import { QwenAdapter } from '../llm/qwen.js';
-import { KimiAdapter } from '../llm/kimi.js';
-import { KimiCodeAdapter } from '../llm/kimi-code.js';
-import { OpenAICompatAdapter } from '../llm/openai-compat.js';
 import { BrowserAgent, getSite } from '../agent/browser/adapter.js';
 import { registerBuiltinSites } from '../agent/browser/sites/index.js';
+import { ProviderRegistry } from './provider-registry.js';
 
 // Register built-in browser site configs at import time
 registerBuiltinSites();
@@ -24,8 +15,11 @@ registerBuiltinSites();
 export class AgentRegistry {
   private agents: Map<string, IAgent> = new Map();
   private llmAdapterCache: Map<string, LLMAdapter> = new Map();
+  private providerRegistry: ProviderRegistry;
 
-  constructor(private store: DataStore) {}
+  constructor(private store: DataStore) {
+    this.providerRegistry = new ProviderRegistry();
+  }
 
   async boot(config: Config): Promise<void> {
     for (const def of config.agents) {
@@ -107,6 +101,19 @@ export class AgentRegistry {
     return this.llmAdapterCache.get(agentId) ?? null;
   }
 
+  detectInstalled(): string[] {
+    return this.providerRegistry.detectInstalled();
+  }
+
+  printDetectedHints(): void {
+    const configuredIds = new Set(this.list().map((a) => a.id));
+    this.providerRegistry.printDetectedHints(configuredIds);
+  }
+
+  get providerCatalog() {
+    return this.providerRegistry;
+  }
+
   private createAgent(def: AgentDef): IAgent {
     if (def.type === 'subprocess') {
       return this.createSubprocessAgent(def);
@@ -156,6 +163,16 @@ export class AgentRegistry {
       adapter = cached;
     } else {
       adapter = this.buildLLMAdapter(def.provider, def.model, def.apiKey, def.endpoint, def.vision);
+      // Allow config to override the adapter's default vision support
+      if (def.vision !== undefined && adapter.supportsVision !== def.vision) {
+        const origChat = adapter.chat.bind(adapter);
+        adapter = {
+          provider: adapter.provider,
+          model: adapter.model,
+          supportsVision: def.vision,
+          chat: origChat,
+        };
+      }
       this.llmAdapterCache.set(cacheKey, adapter);
       this.llmAdapterCache.set(def.id, adapter);
     }
@@ -170,51 +187,6 @@ export class AgentRegistry {
     endpoint?: string,
     vision?: boolean
   ): LLMAdapter {
-    let adapter: LLMAdapter;
-    switch (provider) {
-      case 'anthropic':
-        adapter = new AnthropicAdapter(apiKey, model);
-        break;
-      case 'openai':
-        adapter = new OpenAIAdapter(apiKey, model);
-        break;
-      case 'gemini':
-        adapter = new GeminiAdapter(apiKey, model);
-        break;
-      case 'ollama':
-        adapter = new OllamaAdapter(model, endpoint);
-        break;
-      case 'openai-compat':
-        adapter = new OpenAICompatAdapter(apiKey, model, endpoint ?? 'http://127.0.0.1:8000/v1', vision);
-        break;
-      case 'deepseek':
-        adapter = new DeepSeekAdapter(apiKey, model);
-        break;
-      case 'minimax':
-        adapter = new MinimaxAdapter(apiKey, model);
-        break;
-      case 'qwen':
-        adapter = new QwenAdapter(apiKey, model);
-        break;
-      case 'kimi':
-        adapter = new KimiAdapter(apiKey, model);
-        break;
-      case 'kimi-code':
-        adapter = new KimiCodeAdapter(apiKey, model);
-        break;
-      default:
-        throw new Error(`Unknown LLM provider: ${provider}`);
-    }
-    // Allow config to override adapter default
-    if (vision !== undefined && adapter.supportsVision !== vision) {
-      const origChat = adapter.chat.bind(adapter);
-      return {
-        provider: adapter.provider,
-        model: adapter.model,
-        supportsVision: vision,
-        chat: origChat,
-      };
-    }
-    return adapter;
+    return this.providerRegistry.createLLMAdapter(provider, model, apiKey, endpoint, vision);
   }
 }

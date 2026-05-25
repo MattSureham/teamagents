@@ -470,8 +470,10 @@ export function createRouter(
         events.emit('meeting_started', engine.id, engine.participantIds);
 
         running.running = engine.start().then(() => {
+          meetings.delete(engine.id);
           store.saveMeeting(engine.toStoredMeeting()).catch(() => {});
           saveMeetingLog(config.server.dataDir, engine);
+          teardownWorktree(engine.id);
         });
 
         return json(res, 200, {

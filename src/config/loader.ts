@@ -89,7 +89,10 @@ export function loadConfig(path?: string): Config {
   const configPath = resolve(path ?? './meetings.config.yml');
 
   if (!existsSync(configPath)) {
-    throw new Error(`Config file not found: ${configPath}`);
+    throw new Error(
+      `Config file not found: ${configPath}\n` +
+      `Copy meetings.config.example.yml to meetings.config.yml to get started, or run: am config discover`
+    );
   }
 
   const raw = readFileSync(configPath, 'utf-8');

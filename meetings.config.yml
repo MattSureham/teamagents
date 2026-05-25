@@ -1,12 +1,16 @@
+# ── Agent Meetings Starter Config ──
+# This is a minimal config to get started quickly.
+# Run `am config discover` to detect more agents on your machine,
+# or see meetings.config.example.yml for the full catalog of options.
+
 server:
   port: 4200
   host: "0.0.0.0"
   dataDir: "./data"
 
 agents:
-  # ── Browser agents (free chat UIs — no API key needed) ──
-  # You log in manually in the browser window that opens.
-
+  # ── Browser agent (free — no API key needed) ──
+  # Opens a browser window. Log in to the chat UI manually.
   - id: chatgpt
     name: "ChatGPT"
     type: browser
@@ -14,78 +18,18 @@ agents:
     site: chatgpt
     timeoutMs: 120000
 
-  - id: claude-web
-    name: "Claude Web"
-    type: browser
-    capabilities: [analysis, reasoning, writing, coding]
-    site: claude
-    timeoutMs: 120000
-
-  - id: gemini-web
-    name: "Gemini Web"
-    type: browser
-    capabilities: [general, coding, multimodal]
-    site: gemini
-    timeoutMs: 120000
-
-  - id: deepseek-web
-    name: "DeepSeek Web"
-    type: browser
-    capabilities: [coding, analysis, architecture]
-    site: deepseek
-    timeoutMs: 120000
-
-  # ── Builders (subprocess — these can write code, run commands, create files) ──
-
+  # ── Subprocess agent (runs claude CLI locally) ──
+  # Requires Claude Code installed: npm install -g @anthropic-ai/claude-code
   - id: claude-code
     name: "Claude Code"
     type: subprocess
-    tool: claude-code
     capabilities: [coding, building, debugging, testing, architecture]
     command: claude
-    args: ["-p", "{prompt}", "--output-format", "text", "--permission-mode", "bypassPermissions", "--bare"]
+    args: ["-p", "{prompt}", "--output-format", "text", "--dangerously-skip-permissions", "--bare"]
     timeoutMs: 3600000
 
-  - id: openclaw
-    name: "OpenClaw"
-    type: subprocess
-    tool: generic
-    capabilities: [coding, building, scripting, automation]
-    command: openclaw
-    args: ["agent", "--local", "--json", "--session-id", "{meetingId}", "-m", "{prompt}"]
-    timeoutMs: 1800000
-
-
-  - id: hermes
-    name: "Hermes"
-    type: subprocess
-    tool: generic
-    capabilities: [coding, building, debugging, architecture]
-    command: /Users/matthew/hermes-agent/venv/bin/python
-    args: ["run_agent.py", "-q", "{prompt}", "--max_turns", "15", "-e", "development"]
-    cwd: /Users/matthew/hermes-agent
-    timeoutMs: 1800000
-  - id: codex
-    name: "Codex"
-    type: subprocess
-    tool: generic
-    capabilities: [coding, building, debugging, testing, architecture]
-    command: codex
-    args: ["exec", "{prompt}", "--full-auto"]
-    timeoutMs: 1800000
-
-  - id: opencode
-    name: "OpenCode"
-    type: subprocess
-    tool: generic
-    capabilities: [coding, building, debugging, testing, architecture]
-    command: opencode
-    args: ["run", "{prompt}", "-m", "deepseek/deepseek-v4-pro", "--dangerously-skip-permissions"]
-    timeoutMs: 1800000
-
-
-  # ── Thinkers (LLM API — reasoning, planning, creative) ──
-
+  # ── LLM agent (API-based) ──
+  # Set DEEPSEEK_API_KEY in your environment or a .env file.
   - id: deepseek
     name: "DeepSeek"
     type: llm
@@ -93,97 +37,6 @@ agents:
     provider: deepseek
     model: deepseek-chat
     apiKey: "${DEEPSEEK_API_KEY}"
-    vision: true
-
-  - id: deepseek-reasoner
-    name: "DeepSeek Reasoner"
-    type: llm
-    capabilities: [architecture, planning, reasoning, analysis]
-    provider: deepseek
-    model: deepseek-reasoner
-    apiKey: "${DEEPSEEK_API_KEY}"
-    vision: true
-
-  - id: deepseek-v4-pro
-    name: "DeepSeek V4 Pro"
-    type: llm
-    capabilities: [architecture, planning, coding, analysis, reasoning]
-    provider: deepseek
-    model: deepseek-v4-pro
-    apiKey: "${DEEPSEEK_API_KEY}"
-    vision: true
-
-  - id: deepseek-v4-flash
-    name: "DeepSeek V4 Flash"
-    type: llm
-    capabilities: [coding, brainstorming, iteration]
-    provider: deepseek
-    model: deepseek-v4-flash
-    apiKey: "${DEEPSEEK_API_KEY}"
-    vision: true
-
-  - id: minimax
-    name: "MiniMax"
-    type: llm
-    capabilities: [brainstorming, creative, design, writing, iteration]
-    provider: minimax
-    model: abab6.5s-chat
-    apiKey: "${MINIMAX_API_KEY}"
-
-  - id: minimax-m2.7
-    name: "MiniMax M2.7"
-    type: llm
-    capabilities: [brainstorming, creative, design, writing, iteration, coding, reasoning]
-    provider: minimax
-    model: minimax-m2.7
-    apiKey: "${MINIMAX_API_KEY}"
-    vision: true
-
-  - id: qwen
-    name: "Qwen 3.5"
-    type: llm
-    capabilities: [coding, reasoning, analysis]
-    provider: qwen
-    model: qwen-max
-    apiKey: "${QWEN_API_KEY}"
-    vision: true
-
-  - id: kimi
-    name: "Kimi K2.6"
-    type: llm
-    capabilities: [coding, analysis, reasoning]
-    provider: kimi
-    model: kimi-latest
-    apiKey: "${MOONSHOT_API_KEY}"
-    vision: true
-
-  - id: kimi-code
-    name: "Kimi Code"
-    type: llm
-    capabilities: [coding, debugging, building]
-    provider: kimi-code
-    model: kimi-for-coding
-    apiKey: "${KIMI_API_KEY}"
-
-  # ── Local LLMs (self-hosted — no cloud API key needed) ──
-
-  - id: vllm
-    name: "vLLM"
-    type: llm
-    capabilities: [coding, reasoning, analysis]
-    provider: openai-compat
-    model: "${VLLM_MODEL:-meta-llama/Llama-4-Scout-17B-16E-Instruct}"
-    apiKey: "not-needed"
-    endpoint: "${VLLM_ENDPOINT:-http://127.0.0.1:8000/v1}"
-
-  - id: lmstudio
-    name: "LM Studio"
-    type: llm
-    capabilities: [coding, reasoning, creative]
-    provider: openai-compat
-    model: "${LMSTUDIO_MODEL:-local-model}"
-    apiKey: "not-needed"
-    endpoint: "${LMSTUDIO_ENDPOINT:-http://127.0.0.1:1234/v1}"
 
 meetings:
   mode: debate
@@ -191,13 +44,3 @@ meetings:
   maxRebuttalRounds: 2
   maxDeliberationRounds: 3
   defaultModerator: deepseek
-
-  presets:
-    debate:
-      agents: [deepseek, deepseek-reasoner, minimax-m2.7, qwen, kimi]
-    thinkers:
-      agents: [deepseek, deepseek-reasoner, minimax-m2.7, qwen, kimi, deepseek-web]
-    builders:
-      agents: [claude-code, hermes, codex, opencode]
-    all:
-      agents: [chatgpt, claude-web, gemini-web, deepseek-web, claude-code, hermes, codex, opencode, deepseek, deepseek-reasoner, minimax-m2.7, qwen, kimi]

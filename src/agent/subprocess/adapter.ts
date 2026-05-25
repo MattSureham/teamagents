@@ -56,9 +56,9 @@ export class SubprocessAgent implements IAgent {
     return this.respondViaArgs(prompt);
   }
 
-  /** Effective cwd: per-meeting worktree path takes precedence over agent config. */
+  /** Effective cwd: agent's configured cwd takes priority, meeting workDir is fallback. */
   private effectiveCwd(prompt: MeetingPrompt): string | undefined {
-    return prompt.workDir ?? this.config.cwd;
+    return this.config.cwd ?? prompt.workDir;
   }
 
   /** Effective env: inherit agent config env, inject $MEETING_WORKTREE if set. */

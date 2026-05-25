@@ -290,11 +290,7 @@ let continueFromId = null;
 // Timeout fallback: if agents don't load within 8s, show error
 setTimeout(function() {
   if (agents.length === 0 && !document.querySelector('.banner-error')) {
-    var agentList = document.getElementById('agent-list');
-    if (agentList && agentList.textContent.includes('Loading agents')) {
-      showBanner('error', 'Agents failed to load. Check that the server is running on port ' + location.port + '.');
-      agentList.innerHTML = '<span style="color:#fca5a5;font-size:13px;padding:6px">Failed to load agents — see banner above</span>';
-    }
+    showBanner('error', 'Agents took too long to load. The server may be down or unresponsive. Try restarting with <code>npm start</code>, or check <code>meetings.config.yml</code> for misconfigured agents.');
   }
 }, 8000);
 
@@ -302,10 +298,19 @@ setTimeout(function() {
 async function init() {
   try {
     const res = await fetch('/agents');
+    if (!res.ok) throw new Error('Server returned ' + res.status);
     agents = await res.json();
-    renderAgentChips();
-    renderModeratorSelect();
-  } catch(e) { showBanner('error', 'Failed to load agents. Is the server running?'); }
+    if (agents.length === 0) {
+      showBanner('error', 'No agents configured. Run <code>am config discover</code> to detect installed tools, or edit <code>meetings.config.yml</code>. See <code>meetings.config.example.yml</code> for the full catalog.');
+      $('#agent-list').innerHTML = '<span style="color:#fca5a5;font-size:13px;padding:6px">No agents — see banner above for setup instructions</span>';
+    } else {
+      renderAgentChips();
+      renderModeratorSelect();
+    }
+  } catch(e) {
+    showBanner('error', 'Failed to load agents &mdash; server may be down. Ensure the server is running on port ' + location.port + '. If this is your first time, run: <code>npm start</code>');
+    $('#agent-list').innerHTML = '<span style="color:#fca5a5;font-size:13px;padding:6px">Connection failed &mdash; see banner above</span>';
+  }
 
   loadPastMeetings();
   loadInterruptedMeetings();
@@ -1034,7 +1039,9 @@ async function loadPastMeetings() {
             + '</div>';
         }).join('');
     }
-  } catch(e) { /* ignore */ }
+  } catch(e) {
+    container.innerHTML = '<span style="color:#fca5a5;font-size:12px">Failed to load past meetings</span>';
+  }
 }
 
 async function loadInterruptedMeetings() {
@@ -1059,12 +1066,14 @@ async function loadInterruptedMeetings() {
         + '<div class="pm-topic" style="color:#fbbf24">' + topic + '</div>'
         + '<div class="pm-meta">' + date + ' &middot; ' + count + ' agents &middot; ' + msgs + ' msgs &middot; was in ' + phase + '</div>'
         + '<div class="pm-actions">'
-                + '<button class="btn-resume" onclick="event.stopPropagation();prepareContinue(\'' + m.id + '\')">Resume...</button>'
+        + '<button class="btn-resume" onclick="event.stopPropagation();prepareContinue(\'' + m.id + '\')">Resume...</button>'
         + '<span style="font-size:10px;color:#6b7280;margin-left:6px;display:flex;align-items:center">' + m.id.slice(0,8) + '</span>'
         + '</div>'
         + '</div>';
     }).join('');
-  } catch(e) { /* ignore */ }
+  } catch(e) {
+    container.innerHTML = '<span style="color:#fca5a5;font-size:12px">Failed to load interrupted meetings</span>';
+  }
 }
 
 async function prepareContinue(id) {

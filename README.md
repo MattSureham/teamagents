@@ -2,6 +2,57 @@
 
 A framework for running structured technical meetings and debates between AI agents and LLMs.
 
+## Quick Start
+
+Three ways to get running — pick the one that fits:
+
+### Option 1: `am setup` wizard (recommended)
+
+```bash
+git clone https://github.com/MattSureham/teamagents.git
+cd teamagents
+npm install
+npx tsx src/cli/index.ts setup
+```
+
+Detects installed tools (Claude Code, Codex, etc.), scans for API keys in your environment, writes a starter config, starts the server, and opens the web UI — all in one command. Set `DEEPSEEK_API_KEY` (or other provider keys) in your environment first.
+
+```bash
+# Dry-run to preview what would be generated
+npx tsx src/cli/index.ts setup --dry-run
+
+# Custom port, skip browser open
+npx tsx src/cli/index.ts setup --port 3000 --no-open
+```
+
+A minimal `meetings.config.yml` ships with the repo (ChatGPT browser + Claude Code subprocess + DeepSeek LLM). You can start the server directly with `npm start` if you already have API keys configured.
+
+### Option 2: Docker (zero Node.js required)
+
+```bash
+docker run -p 4200:4200 -e DEEPSEEK_API_KEY=sk-... ghcr.io/mattsureham/agent-meetings
+```
+
+Then open http://localhost:4200. Built-in agents for Anthropic, OpenAI, and DeepSeek — provide the env vars for the ones you want to use. Mount your own config to customize:
+
+```bash
+docker run -p 4200:4200 \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
+  -e DEEPSEEK_API_KEY=sk-... \
+  -v ./meetings.config.yml:/app/meetings.config.yml \
+  ghcr.io/mattsureham/agent-meetings
+```
+
+### Option 3: Manual
+
+Follow the [Deployment Guide](#deployment-guide) below for step-by-step setup on macOS, Linux, or Windows.
+
+### Once running
+
+Open **http://localhost:4200** — the web UI has **quick-start templates** (Code Review, Brainstorming, Architecture Planning) that fill in agents, topic, context, mode, and settings in one click. Or configure everything manually and press Start Meeting.
+
+---
+
 ## How it works
 
 Agent Meetings runs a **long-lived server** that agents register with. When you schedule a meeting, the server picks up the topic and the participants, then runs a structured debate through a fixed sequence of phases. Each phase has a specific purpose and turn-taking rule. The output is a full transcript plus a structured summary.
@@ -239,6 +290,8 @@ Each turn has a configurable timeout (`turnTimeoutMs`, default 60,000ms). If an 
 
 This guide covers setting up Agent Meetings from scratch on macOS and Windows — cloning the repo, installing dependencies, configuring agents, and running your first meeting.
 
+**For the quickest start, use `npx tsx src/cli/index.ts setup`** — it auto-detects tools and API keys and writes your config for you. The steps below are the manual path.
+
 ### Prerequisites
 
 | Requirement | macOS | Windows |
@@ -329,24 +382,11 @@ The framework reads `.env` automatically on every run — no need to `export` ke
 
 ### Step 3 — Configure agents
 
-Edit `meetings.config.yml`. The framework ships with a fully annotated example at [meetings.config.example.yml](meetings.config.example.yml). You can start from that:
+A minimal `meetings.config.yml` already ships with the repo (ChatGPT browser + Claude Code subprocess + DeepSeek LLM). If you ran `am setup`, it was generated for you automatically.
 
-**macOS / Linux:**
-```bash
-cp meetings.config.example.yml meetings.config.yml
-```
+To customize: edit `meetings.config.yml`. The full annotated catalog is at [meetings.config.example.yml](meetings.config.example.yml) — copy that for all 20+ agent options.
 
-**Windows (Command Prompt):**
-```cmd
-copy meetings.config.example.yml meetings.config.yml
-```
-
-**Windows (PowerShell):**
-```powershell
-Copy-Item meetings.config.example.yml meetings.config.yml
-```
-
-Or build your own. Here's a minimal config with common agents:
+Or build your own. Here's a config with common agents:
 
 ```yaml
 server:
@@ -364,22 +404,21 @@ agents:
     apiKey: "${DEEPSEEK_API_KEY}"
     capabilities: [architecture, planning, coding, reasoning]
 
-  - id: minimax
-    name: "MiniMax"
+  - id: anthropic
+    name: "Claude"
     type: llm
-    provider: minimax
-    model: abab6.5s-chat
-    apiKey: "${MINIMAX_API_KEY}"
-    capabilities: [brainstorming, creative, design]
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    apiKey: "${ANTHROPIC_API_KEY}"
+    capabilities: [analysis, reasoning, coding]
 
   # ── Builders (subprocess — can write code, run commands) ──
   - id: claude-code
     name: "Claude Code"
     type: subprocess
-    tool: claude-code
     command: claude
-    args: ["-p", "{prompt}", "--output-format", "text", "--permission-mode", "bypassPermissions", "--bare"]
-    timeoutMs: 1800000
+    args: ["-p", "{prompt}", "--output-format", "text", "--dangerously-skip-permissions", "--bare"]
+    timeoutMs: 3600000
     capabilities: [coding, building, debugging, testing]
 
 meetings:
@@ -661,12 +700,15 @@ npm start
 
 Then open **`http://127.0.0.1:4200/`** in a browser. The web console provides:
 
-- **Agent selection** — click chips to pick participants (color-coded: purple=LLM, orange=browser, green=subprocess)
-- **Topic & context** — type or upload a `.txt`/`.md` file
+- **Quick-start templates** — one-click presets for Code Review, Brainstorming, and Architecture Planning that fill in agents, topic, context, mode, and settings
+- **Agent selection** — click chips to pick participants (color-coded: purple=LLM, orange=browser, green=subprocess, yellow=protocol)
+- **Topic & context** — type or upload a `.txt`/`.md`/`.pdf`/`.docx` file
 - **Mode toggle** — debate or collaboration
-- **Settings** — rebuttal rounds, deliberation turns, max turns, timeout, moderator
-- **Live transcript** — messages stream in real time with phase dividers and colored avatars
-- **Summary** — consensus, key points, dissenting views, vote tally, deliverables on conclusion
+- **Working directory** — shared folder for agents to build in, with directory browser and git worktree isolation option
+- **Settings** — rebuttal rounds, deliberation turns, build rounds, max turns, timeout, moderator
+- **Live transcript** — messages stream in real time via WebSocket with phase dividers and colored avatars
+- **Summary** — consensus, key points, action items, vote tally, deliverables on conclusion
+- **Download** — save transcript log or full HTML snapshot of any meeting
 
 ---
 
@@ -767,6 +809,13 @@ agent-meetings serve [options]
   --ws-token <token>           Fixed WebSocket auth token for remote agents (random if omitted)
   --no-mcp                     Disable the MCP server endpoint (/mcp)
 
+agent-meetings setup [options]
+  One-command wizard: detect tools on PATH, scan for API keys, write starter config,
+  start the server, and open the web UI. Zero config needed.
+  --port <port>                Server port (default: 4200)
+  --no-open                    Skip opening the browser
+  --dry-run                    Print the generated config to stdout instead of writing and starting
+
 agent-meetings schedule -t <topic> -a <agent-ids> [options]
   Schedule a meeting on a running server.
   -t, --topic <topic>          Meeting topic (required)
@@ -792,6 +841,7 @@ agent-meetings config show
 agent-meetings config discover
   Detect installed CLI tools on your PATH (Claude Code, Codex, etc.)
   and show which ones are configured vs. available but unused.
+  For a one-command setup, use `agent-meetings setup` instead.
 
 agent-meetings connect [options]
   Connect as a remote agent to a running server over WebSocket.

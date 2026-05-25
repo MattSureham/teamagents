@@ -33,6 +33,15 @@
   .preset-clear { color: #6b7280; }
   .preset-clear:hover { border-color: #dc354566; color: #dc3545; }
 
+  .template-cards { display: flex; flex-direction: column; gap: 6px; margin-bottom: 2px; }
+  .template-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #1c1e26; border: 1px solid #2d3039; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+  .template-card:hover { border-color: #4f8fff66; background: #1f2330; }
+  .template-card.applied { border-color: #4f8fff; background: #1a2740; }
+  .template-card .tmpl-icon { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+  .template-card .tmpl-info { flex: 1; min-width: 0; }
+  .template-card .tmpl-label { font-size: 13px; font-weight: 600; color: #e4e4e7; display: block; }
+  .template-card .tmpl-desc { font-size: 11px; color: #6b7280; display: block; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   .agent-grid { display: flex; flex-wrap: wrap; gap: 6px; max-height: 200px; overflow-y: auto; padding: 2px; }
   .agent-chip { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 13px; cursor: pointer; border: 1px solid #2d3039; background: #1c1e26; color: #a1a5b0; transition: all 0.15s; user-select: none; }
   .agent-chip:hover { border-color: #4f8fff33; background: #1f2330; }
@@ -155,6 +164,33 @@
   </div>
   <div class="sidebar-body">
     <div id="banner-container"></div>
+
+    <div id="templates-section">
+      <label style="margin-bottom:8px">Quick Start</label>
+      <div class="template-cards" id="template-cards">
+        <div class="template-card" data-template="code-review" onclick="applyTemplate('code-review')">
+          <span class="tmpl-icon">🔍</span>
+          <div class="tmpl-info">
+            <span class="tmpl-label">Code Review</span>
+            <span class="tmpl-desc">Review code quality, find bugs, suggest improvements</span>
+          </div>
+        </div>
+        <div class="template-card" data-template="brainstorming" onclick="applyTemplate('brainstorming')">
+          <span class="tmpl-icon">💡</span>
+          <div class="tmpl-info">
+            <span class="tmpl-label">Brainstorming</span>
+            <span class="tmpl-desc">Creative ideation with diverse perspectives</span>
+          </div>
+        </div>
+        <div class="template-card" data-template="architecture" onclick="applyTemplate('architecture')">
+          <span class="tmpl-icon">🏗️</span>
+          <div class="tmpl-info">
+            <span class="tmpl-label">Architecture Planning</span>
+            <span class="tmpl-desc">Design systems, weigh trade-offs, plan components</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div>
       <label for="topic">Topic</label>
@@ -286,6 +322,130 @@ let pollTimer = null;
 let agents = [];
 let meetingActive = false;
 let continueFromId = null;
+
+// ── Quick-Start Templates ──
+const TEMPLATES = [
+  {
+    id: 'code-review',
+    label: 'Code Review',
+    topic: 'Review the following code for bugs, performance issues, and maintainability problems. Suggest concrete improvements with code examples where applicable.',
+    context: 'Focus on:\n- Security vulnerabilities\n- Performance bottlenecks\n- Code organization and readability\n- Error handling gaps\n- Test coverage',
+    mode: 'debate',
+    slots: [
+      { type: 'subprocess', desc: 'coding agent' },
+      { capability: 'coding', desc: 'reviewer' },
+    ],
+    moderatorPreference: { capability: 'architecture' },
+    settings: { rebuttal: 1, deliberation: 5, build: 1, maxTurns: 30, timeout: 60000 },
+  },
+  {
+    id: 'brainstorming',
+    label: 'Brainstorming',
+    topic: 'Brainstorm creative solutions and ideas. Think outside the box and explore unconventional approaches. Generate as many diverse ideas as possible.',
+    context: 'Ground rules:\n- No idea is too wild — quantity over quality in the first pass\n- Build on each other\'s suggestions\n- Consider the problem from multiple angles: user, business, technical, ethical\n- Identify the top 3 most promising ideas at the end',
+    mode: 'collaboration',
+    slots: [
+      { capability: 'creative', desc: 'creative thinker' },
+      { capability: 'brainstorming', desc: 'idea generator' },
+      { capability: 'general', desc: 'generalist' },
+    ],
+    moderatorPreference: { capability: 'general' },
+    settings: { rebuttal: 2, deliberation: 10, build: 0, maxTurns: 50, timeout: 60000 },
+  },
+  {
+    id: 'architecture',
+    label: 'Architecture Planning',
+    topic: 'Design the system architecture. Consider trade-offs between scalability, maintainability, performance, and complexity. Propose a concrete architecture with components, data flow, and interfaces.',
+    context: 'Requirements to address:\n- Scalability: must handle 10x growth\n- Reliability: 99.9% uptime target\n- Security: multi-tenant data isolation\n- Cost: optimize for infrastructure spend\n\nDeliverables:\n- High-level architecture diagram (describe in text)\n- Component responsibilities\n- Data flow between components\n- Key technology choices with rationale\n- Risk assessment',
+    mode: 'debate',
+    slots: [
+      { capability: 'architecture', desc: 'architect' },
+      { capability: 'planning', desc: 'planner' },
+    ],
+    moderatorPreference: { capability: 'architecture' },
+    settings: { rebuttal: 2, deliberation: 5, build: 1, maxTurns: 30, timeout: 120000 },
+  },
+];
+
+function matchAgent(matcher, excludeIds) {
+  let best = null;
+  let bestScore = -1;
+  for (const agent of agents) {
+    if (excludeIds.has(agent.id)) continue;
+    let score = 0;
+    if (matcher.type && agent.type === matcher.type) score += 10;
+    if (matcher.capability) {
+      const lower = matcher.capability.toLowerCase();
+      const matched = agent.capabilities.some(function(c) {
+        return c === '*' || c.toLowerCase().indexOf(lower) >= 0 || lower.indexOf(c.toLowerCase()) >= 0;
+      });
+      if (matched) score += 5;
+    }
+    if (matcher.namePattern) {
+      try {
+        if (new RegExp(matcher.namePattern, 'i').test(agent.name + ' ' + agent.id)) score += 3;
+      } catch (_) {}
+    }
+    if (score > bestScore) { bestScore = score; best = agent; }
+  }
+  return best;
+}
+
+function applyTemplate(templateId) {
+  if (meetingActive) return;
+  const tmpl = TEMPLATES.find(function(t) { return t.id === templateId; });
+  if (!tmpl) return;
+
+  const selected = [];
+  const usedIds = new Set();
+  for (const slot of tmpl.slots) {
+    const agent = matchAgent(slot, usedIds);
+    if (agent) { selected.push(agent.id); usedIds.add(agent.id); }
+  }
+  // Fill remaining slots (need at least 2 agents)
+  if (selected.length < 2) {
+    for (const agent of agents) {
+      if (!usedIds.has(agent.id)) { selected.push(agent.id); usedIds.add(agent.id); if (selected.length >= 3) break; }
+    }
+  }
+
+  // Apply selections
+  $$('.agent-chip').forEach(function(c) {
+    c.classList.toggle('selected', selected.indexOf(c.dataset.id) >= 0);
+  });
+
+  // Moderator
+  const modAgent = matchAgent(tmpl.moderatorPreference, new Set())
+    || (agents.find(function(a) { return a.type === 'llm'; }))
+    || agents[0];
+  if (modAgent) $('#moderator').value = modAgent.id;
+
+  // Form fields
+  $('#topic').value = tmpl.topic;
+  $('#context').value = tmpl.context || '';
+  setMode(tmpl.mode);
+
+  if (tmpl.settings) {
+    $('#rebuttal-rounds').value = tmpl.settings.rebuttal;
+    $('#deliberation-turns').value = tmpl.settings.deliberation;
+    $('#build-rounds').value = tmpl.settings.build;
+    $('#max-turns').value = tmpl.settings.maxTurns;
+    $('#turn-timeout').value = tmpl.settings.timeout;
+  }
+
+  // Visual feedback
+  $$('.template-card').forEach(function(c) { c.classList.remove('applied'); });
+  var card = document.querySelector('.template-card[data-template="' + templateId + '"]');
+  if (card) card.classList.add('applied');
+
+  updateStartButton();
+
+  var agentNames = selected.map(function(id) {
+    var a = agents.find(function(ag) { return ag.id === id; });
+    return a ? a.name : id;
+  }).join(', ');
+  showBanner('success', '“' + tmpl.label + '” template applied &mdash; ' + agentNames + ' selected. Tweak as needed, then Start Meeting.');
+}
 
 // Timeout fallback: if agents don't load within 8s, show error
 setTimeout(function() {

@@ -10,6 +10,7 @@ import { runCommand } from './commands/run.js';
 import { resumeCommand } from './commands/resume.js';
 import { connectCommand } from './commands/connect.js';
 import { browserSetupCommand } from './commands/browser-setup.js';
+import { setupCommand } from './commands/setup.js';
 
 const program = new Command();
 
@@ -28,5 +29,6 @@ program.addCommand(scheduleCommand());
 program.addCommand(listCommand());
 program.addCommand(viewCommand());
 program.addCommand(configCommand());
+program.addCommand(setupCommand());
 
 program.parse(process.argv);

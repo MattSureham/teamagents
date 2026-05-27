@@ -1240,7 +1240,7 @@ async function loadInterruptedMeetings() {
 }
 
 async function prepareContinue(id) {
-  if (meetingActive) return;
+  if (meetingActive) { showBanner('info', 'A meeting is already in progress — stop it first, then try again.'); return; }
 
   try {
     var res = await fetch('/meetings/' + id);
@@ -1300,7 +1300,7 @@ async function prepareContinue(id) {
 }
 
 async function prepareRestart(id) {
-  if (meetingActive) return;
+  if (meetingActive) { showBanner('info', 'A meeting is already in progress — stop it first, then try again.'); return; }
 
   try {
     var res = await fetch('/meetings/' + id);

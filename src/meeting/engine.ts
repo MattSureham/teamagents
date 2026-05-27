@@ -684,9 +684,13 @@ export class MeetingEngine {
 
     try {
       const started = Date.now();
-      // Use agent's own timeout + 60s buffer as the engine safety net.
-      // Falls back to 30 min for agents that don't declare a timeout.
-      const engineTimeout = (agent.timeoutMs ?? 1_800_000) + 60_000;
+      // Safety net: agent's own timeout + 60s buffer. For text-only phases
+      // (debate, deliberation, etc.) cap at 5 min — no agent needs longer.
+      // BUILD phase uses the full agent timeout since tool work is legitimately slow.
+      const isBuildPhase = this.currentPhase === MeetingPhase.BUILD;
+      const engineTimeout = isBuildPhase
+        ? (agent.timeoutMs ?? 1_800_000) + 60_000
+        : Math.min(agent.timeoutMs ?? 300_000, 300_000) + 60_000;
       const response = await Promise.race([
         agent.respond({
           meetingId: this.id,

@@ -228,11 +228,18 @@ export class SubprocessAgent implements IAgent {
       ];
     }
 
+    const phase = prompt.phase;
+    const phaseGuidance = phase === 'build'
+      ? 'You are in a BUILD phase. Use your tools to read existing files, write code, run commands, and implement ONE piece of the project.'
+      : 'This is a DISCUSSION-ONLY phase. Do NOT attempt to read files, run commands, or write code. Provide your thoughts, reasoning, and opinions as text only. Do not use any tools.';
+
     return [
       `You are "${this.name}" participating in a structured meeting.`,
       `MEETING TOPIC: ${prompt.topic}`,
       `BACKGROUND: ${prompt.background || 'None provided.'}`,
       `CURRENT PHASE: ${prompt.phase.toUpperCase()}`,
+      '',
+      phaseGuidance,
       '',
       'CONVERSATION SO FAR:',
       ...transcriptLines,

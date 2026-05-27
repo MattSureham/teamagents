@@ -17,6 +17,7 @@ export interface MeetingPrompt {
   speakingOrder: string[];
   currentPrompt: string;
   workDir?: string;
+  signal?: AbortSignal;
 }
 
 export interface TranscriptMessage {

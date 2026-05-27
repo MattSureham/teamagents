@@ -99,6 +99,7 @@ export class MeetingEngine {
   private resumePoint: ResumePoint = { rebuttalRound: 0 };
   private checkpointStore: DataStore | null = null;
   private isResuming = false;
+  private abortController = new AbortController();
 
   constructor(config: MeetingConfig) {
     this.id = config.resumeId ?? randomUUID();
@@ -382,6 +383,7 @@ export class MeetingEngine {
   cancel(): void {
     this.aborted = true;
     this.status = 'cancelled';
+    this.abortController.abort();
     this.onStatusChange?.('cancelled');
     if (this.phaseTimeline.length > 0) {
       const current = this.phaseTimeline[this.phaseTimeline.length - 1];
@@ -705,6 +707,7 @@ export class MeetingEngine {
           speakingOrder: this.participantIds,
           currentPrompt: promptText,
           workDir: this.workDir,
+          signal: this.abortController.signal,
         }),
         new Promise<{ content: string }>((resolve) =>
           setTimeout(

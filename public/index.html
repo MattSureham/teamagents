@@ -321,6 +321,7 @@ let meetingId = null;
 let pollTimer = null;
 let agents = [];
 let meetingActive = false;
+let restartMode = false;
 let continueFromId = null;
 
 // ── Quick-Start Templates ──
@@ -1180,7 +1181,7 @@ async function loadPastMeetings() {
           + '<div class="pm-meta">' + date + ' &middot; ' + count + ' participants &middot; ' + m.mode + ' &middot; ' + msgs + ' msgs</div>'
           + '<div class="pm-actions">'
           + '<button class="btn-resume" style="border-color:#2d3039;background:#1c1e26;color:#a1a5b0" onclick="event.stopPropagation();prepareContinue(\'' + m.id + '\')">Continue...</button>'
-          + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();prepareRestart(\'' + m.id + '\')">Restart</button>'
+          + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();restartMode=true;prepareContinue(\'' + m.id + '\')">Restart</button>'
           + '</div>'
           + '</div>';
       }).join('');
@@ -1197,7 +1198,7 @@ async function loadPastMeetings() {
             + '<div class="pm-topic">' + escapeHtml(topic) + '</div>'
             + '<div class="pm-meta">' + date + ' &middot; ' + (m.participantIds || []).length + ' participants &middot; ' + msgs + ' msgs</div>'
             + '<div class="pm-actions"><button class="btn-resume" style="border-color:#2d3039;background:#1c1e26;color:#a1a5b0" onclick="event.stopPropagation();prepareContinue(\'' + m.id + '\')">Continue</button>'
-            + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();prepareRestart(\'' + m.id + '\')">Restart</button></div>'
+            + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();restartMode=true;prepareContinue(\'' + m.id + '\')">Restart</button></div>'
             + '</div>';
         }).join('');
     }
@@ -1229,7 +1230,7 @@ async function loadInterruptedMeetings() {
         + '<div class="pm-meta">' + date + ' &middot; ' + count + ' agents &middot; ' + msgs + ' msgs &middot; was in ' + phase + '</div>'
         + '<div class="pm-actions">'
         + '<button class="btn-resume" onclick="event.stopPropagation();prepareContinue(\'' + m.id + '\')">Resume...</button>'
-        + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();prepareRestart(\'' + m.id + '\')">Restart</button>'
+        + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();restartMode=true;prepareContinue(\'' + m.id + '\')">Restart</button>'
         + '<span style="font-size:10px;color:#6b7280;margin-left:6px;display:flex;align-items:center">' + m.id.slice(0,8) + '</span>'
         + '</div>'
         + '</div>';
@@ -1277,15 +1278,26 @@ async function prepareContinue(id) {
       c.classList.toggle('selected', ids.indexOf(c.dataset.id) >= 0);
     });
 
-    // Set continue mode
-    continueFromId = id;
-    var isActive = meeting.status === 'active';
-    var label = isActive ? 'Resume Meeting' : 'Continue Meeting';
+    // Set continue/restart mode
+    var isRestart = restartMode;
+    restartMode = false;
+    if (isRestart) {
+      continueFromId = null;
+      var label = 'Start Meeting';
+    } else {
+      continueFromId = id;
+      var isActive = meeting.status === 'active';
+      var label = isActive ? 'Resume Meeting' : 'Continue Meeting';
+    }
     $('#btn-start').querySelector('.btn-label').textContent = label;
     updateStartButton();
 
     // Clear transcript area
-    $('#transcript-container').innerHTML = '<div class="transcript-empty"><div class="icon">🔄</div><p>Ready to ' + (isActive ? 'resume' : 'continue') + ' <strong>' + escapeHtml(meeting.topic) + '</strong></p><p style="color:#6b7280;font-size:12px;margin-top:4px">' + (meeting.transcript || []).length + ' prior messages &middot; was in phase: ' + (meeting.currentPhase || 'unknown') + '</p><p style="color:#6b7280;font-size:12px">Set a working directory above if agents need to write files.</p></div>';
+    var transcriptMsg = isRestart
+      ? '<div class="transcript-empty"><div class="icon">🔄</div><p>Restart <strong>' + escapeHtml(meeting.topic) + '</strong></p><p style="color:#6b7280;font-size:12px;margin-top:4px">Same topic, agents, and settings — fresh transcript.</p><p style="color:#6b7280;font-size:12px">Set a working directory above if agents need to write files.</p></div>'
+      : '<div class="transcript-empty"><div class="icon">🔄</div><p>Ready to ' + (isActive ? 'resume' : 'continue') + ' <strong>' + escapeHtml(meeting.topic) + '</strong></p><p style="color:#6b7280;font-size:12px;margin-top:4px">' + (meeting.transcript || []).length + ' prior messages &middot; was in phase: ' + (meeting.currentPhase || 'unknown') + '</p><p style="color:#6b7280;font-size:12px">Set a working directory above if agents need to write files.</p></div>';
+    $('#transcript-container').innerHTML = transcriptMsg;
+    $('#transcript-container').innerHTML = transcriptMsg;
     $('#meeting-title').textContent = meeting.topic;
     updateStatus('idle');
 
@@ -1294,57 +1306,6 @@ async function prepareContinue(id) {
     $('#workdir').focus();
 
     showBanner('info', 'Form populated — set a working directory then click "' + label + '".');
-  } catch(e) {
-    showBanner('error', 'Failed to prepare: ' + escapeHtml(e.message));
-  }
-}
-
-async function prepareRestart(id) {
-  if (meetingActive) { showBanner('info', 'A meeting is already in progress — stop it first, then try again.'); return; }
-
-  try {
-    var res = await fetch('/meetings/' + id);
-    if (!res.ok) { showBanner('error', 'Failed to load meeting details.'); return; }
-    var meeting = await res.json();
-
-    // Populate the form (same as prepareContinue)
-    $('#topic').value = meeting.topic;
-    $('#context').value = meeting.context || '';
-
-    $$('#mode-toggle button').forEach(function(b) {
-      b.classList.toggle('active', b.dataset.mode === meeting.mode);
-    });
-
-    var storedWorkDir = (meeting.config && meeting.config.workDir) || '';
-    $('#workdir').value = storedWorkDir;
-
-    if (meeting.moderatorId) $('#moderator').value = meeting.moderatorId;
-
-    if (meeting.config) {
-      $('#rebuttal-rounds').value = meeting.config.maxRebuttalRounds || 1;
-      $('#deliberation-turns').value = meeting.config.maxDeliberationRounds || 10;
-      $('#build-rounds').value = meeting.config.maxBuildRounds || 3;
-      $('#turn-timeout').value = meeting.config.turnTimeoutMs || 60000;
-    }
-
-    var ids = meeting.participantIds || [];
-    $$('.agent-chip').forEach(function(c) {
-      c.classList.toggle('selected', ids.indexOf(c.dataset.id) >= 0);
-    });
-
-    // Fresh start — do NOT set continueFromId
-    continueFromId = null;
-    $('#btn-start').querySelector('.btn-label').textContent = 'Start Meeting';
-    updateStartButton();
-
-    $('#transcript-container').innerHTML = '<div class="transcript-empty"><div class="icon">🔄</div><p>Restart <strong>' + escapeHtml(meeting.topic) + '</strong></p><p style="color:#6b7280;font-size:12px;margin-top:4px">Same topic, agents, and settings — fresh transcript.</p><p style="color:#6b7280;font-size:12px">Set a working directory above if agents need to write files.</p></div>';
-    $('#meeting-title').textContent = meeting.topic;
-    updateStatus('idle');
-
-    $('#workdir').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    $('#workdir').focus();
-
-    showBanner('info', 'Form populated for a fresh start — click Start Meeting.');
   } catch(e) {
     showBanner('error', 'Failed to prepare: ' + escapeHtml(e.message));
   }

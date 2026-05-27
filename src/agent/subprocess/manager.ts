@@ -16,6 +16,7 @@ export interface SpawnOptions {
   env?: Record<string, string>;
   timeoutMs?: number;
   input?: string;
+  signal?: AbortSignal;
 }
 
 export class SubprocessManager {
@@ -48,6 +49,25 @@ export class SubprocessManager {
           resolve({ stdout, stderr, exitCode: null, timedOut: true, durationMs: Date.now() - start });
         }
       }, timeoutMs);
+
+      if (opts.signal) {
+        if (opts.signal.aborted) {
+          clearTimeout(timer);
+          settled = true;
+          this.kill(id);
+          resolve({ stdout, stderr, exitCode: null, timedOut: false, durationMs: Date.now() - start });
+          return;
+        }
+        const onAbort = () => {
+          clearTimeout(timer);
+          if (!settled) {
+            settled = true;
+            this.kill(id);
+            resolve({ stdout, stderr, exitCode: null, timedOut: false, durationMs: Date.now() - start });
+          }
+        };
+        opts.signal.addEventListener('abort', onAbort, { once: true });
+      }
 
       if (opts.input) {
         const drain = !child.stdin!.write(opts.input);

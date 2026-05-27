@@ -81,6 +81,7 @@ export class SubprocessAgent implements IAgent {
       env: this.effectiveEnv(prompt),
       timeoutMs: this.config.timeoutMs,
       input: promptText,
+      signal: prompt.signal,
     });
 
     if (result.timedOut) {
@@ -118,6 +119,7 @@ export class SubprocessAgent implements IAgent {
       cwd: this.effectiveCwd(prompt),
       env: this.effectiveEnv(prompt),
       timeoutMs: this.config.timeoutMs,
+      signal: prompt.signal,
     });
 
     if (result.timedOut) {
@@ -162,6 +164,7 @@ export class SubprocessAgent implements IAgent {
       env: this.effectiveEnv(prompt),
       timeoutMs: this.config.timeoutMs,
       input: promptText,
+      signal: prompt.signal,
     });
 
     if (result.timedOut) {
@@ -185,6 +188,7 @@ export class SubprocessAgent implements IAgent {
         cwd: this.effectiveCwd(prompt),
         env: this.effectiveEnv(prompt),
         timeoutMs: this.config.timeoutMs,
+        signal: prompt.signal,
       });
 
       if (result.timedOut) {

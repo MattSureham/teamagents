@@ -43,14 +43,13 @@ export async function createServer(configPath?: string): Promise<ServerInstance>
     },
 
     async stop(): Promise<void> {
-      return new Promise((resolve) => {
-        router.cancelAllMeetings();
-        wss.close(() => {
-          httpServer.close(() => {
-            registry.shutdown().then(resolve).catch(resolve);
-          });
-        });
-      });
+      // Cancel all meetings first (aborts in-progress agent calls)
+      router.cancelAllMeetings();
+      // Shutdown agents immediately — kills subprocesses, closes browsers
+      await registry.shutdown().catch(() => {});
+      // Then close sockets
+      wss.close();
+      httpServer.close();
     },
 
     registry,

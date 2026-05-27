@@ -499,6 +499,22 @@ async function init() {
   $('#btn-browse').addEventListener('click', toggleBrowser);
   $('#btn-mkdir').addEventListener('click', createFolder);
 
+  // Delegated click handler for resume/restart buttons (avoids inline onclick escaping issues)
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.btn-resume-action');
+    if (btn && btn.dataset.id) {
+      e.stopPropagation();
+      prepareContinue(btn.dataset.id);
+      return;
+    }
+    btn = e.target.closest('.btn-restart-action');
+    if (btn && btn.dataset.id) {
+      e.stopPropagation();
+      restartMode = true;
+      prepareContinue(btn.dataset.id);
+    }
+  });
+
   // Restore meeting after page refresh — verify with server first
   var savedId = sessionStorage.getItem('meetingId');
   if (savedId) {
@@ -1197,8 +1213,8 @@ async function loadPastMeetings() {
           + '<div class="pm-topic">' + topic + '</div>'
           + '<div class="pm-meta">' + date + ' &middot; ' + count + ' participants &middot; ' + m.mode + ' &middot; ' + msgs + ' msgs</div>'
           + '<div class="pm-actions">'
-          + '<button class="btn-resume" style="border-color:#2d3039;background:#1c1e26;color:#a1a5b0" onclick="event.stopPropagation();prepareContinue(\'' + m.id + '\')">Continue...</button>'
-          + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();restartMode=true;prepareContinue(\'' + m.id + '\')">Restart</button>'
+          + '<button class="btn-resume btn-resume-action" data-id="' + m.id + '" style="border-color:#2d3039;background:#1c1e26;color:#a1a5b0">Continue...</button>'
+          + '<button class="btn-resume btn-restart-action" data-id="' + m.id + '" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px">Restart</button>'
           + '</div>'
           + '</div>';
       }).join('');
@@ -1214,8 +1230,8 @@ async function loadPastMeetings() {
           return '<div class="past-meeting-item" onclick="viewPastMeeting(\'' + m.id + '\')" style="text-align:left">'
             + '<div class="pm-topic">' + escapeHtml(topic) + '</div>'
             + '<div class="pm-meta">' + date + ' &middot; ' + (m.participantIds || []).length + ' participants &middot; ' + msgs + ' msgs</div>'
-            + '<div class="pm-actions"><button class="btn-resume" style="border-color:#2d3039;background:#1c1e26;color:#a1a5b0" onclick="event.stopPropagation();prepareContinue(\'' + m.id + '\')">Continue</button>'
-            + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();restartMode=true;prepareContinue(\'' + m.id + '\')">Restart</button></div>'
+            + '<div class="pm-actions"><button class="btn-resume btn-resume-action" data-id="' + m.id + '" style="border-color:#2d3039;background:#1c1e26;color:#a1a5b0">Continue</button>'
+            + '<button class="btn-resume btn-restart-action" data-id="' + m.id + '" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px">Restart</button></div>'
             + '</div>';
         }).join('');
     }
@@ -1246,8 +1262,8 @@ async function loadInterruptedMeetings() {
         + '<div class="pm-topic" style="color:#fbbf24">' + topic + '</div>'
         + '<div class="pm-meta">' + date + ' &middot; ' + count + ' agents &middot; ' + msgs + ' msgs &middot; was in ' + phase + '</div>'
         + '<div class="pm-actions">'
-        + '<button class="btn-resume" onclick="event.stopPropagation();prepareContinue(\'' + m.id + '\')">Resume...</button>'
-        + '<button class="btn-resume" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px" onclick="event.stopPropagation();restartMode=true;prepareContinue(\'' + m.id + '\')">Restart</button>'
+        + '<button class="btn-resume btn-resume-action" data-id="' + m.id + '">Resume...</button>'
+        + '<button class="btn-resume btn-restart-action" data-id="' + m.id + '" style="border-color:#1e3a3a;background:#0f1f1f;color:#4ade80;margin-left:4px">Restart</button>'
         + '<span style="font-size:10px;color:#6b7280;margin-left:6px;display:flex;align-items:center">' + m.id.slice(0,8) + '</span>'
         + '</div>'
         + '</div>';

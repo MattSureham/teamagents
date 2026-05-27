@@ -684,6 +684,9 @@ export class MeetingEngine {
 
     try {
       const started = Date.now();
+      // Use agent's own timeout + 60s buffer as the engine safety net.
+      // Falls back to 30 min for agents that don't declare a timeout.
+      const engineTimeout = (agent.timeoutMs ?? 1_800_000) + 60_000;
       const response = await Promise.race([
         agent.respond({
           meetingId: this.id,
@@ -701,8 +704,8 @@ export class MeetingEngine {
         }),
         new Promise<{ content: string }>((resolve) =>
           setTimeout(
-            () => resolve({ content: `[${agent.name} did not respond within ${this.turnTimeoutMs}ms]` }),
-            this.turnTimeoutMs
+            () => resolve({ content: `[${agent.name} did not respond within ${engineTimeout}ms]` }),
+            engineTimeout
           )
         ),
       ]);

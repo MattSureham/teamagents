@@ -7,7 +7,7 @@ export class ProtocolAgent implements IAgent {
   readonly name: string;
   readonly capabilities: string[];
   private ws: WebSocket;
-  private timeoutMs: number;
+  readonly timeoutMs: number;
   private pendingRequests: Map<
     string,
     { resolve: (value: AgentResponse) => void; reject: (reason: Error) => void }

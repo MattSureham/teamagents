@@ -28,7 +28,7 @@ export class BrowserAgent implements IAgent {
   readonly name: string;
   readonly capabilities: string[];
   private site: SiteConfig;
-  private timeoutMs: number;
+  readonly timeoutMs: number;
   private context: BrowserContext | null = null;
   private page: Page | null = null;
 

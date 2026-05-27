@@ -24,6 +24,7 @@ export class SubprocessAgent implements IAgent {
   readonly id: string;
   readonly name: string;
   readonly capabilities: string[];
+  get timeoutMs() { return this.config.timeoutMs; }
   private manager: SubprocessManager;
   private config: SubprocessAgentConfig;
 

@@ -73,11 +73,11 @@ export class Moderator {
   }
 
   buildRebuttalPrompt(topic: string, agentName: string): string {
-    return `You have heard the positions stated so far. Please offer your rebuttal — respond to specific points made by other participants and defend your own position. Topic: "${topic}"`;
+    return `You have heard the positions stated so far. Please offer your rebuttal — respond to specific points made by other participants and defend your own position. Only rebut points you actually disagree with. Do not re-state or summarize positions you agree with — skip them and focus on genuine disagreements. Topic: "${topic}"`;
   }
 
   buildDeliberationPrompt(topic: string, agentName: string): string {
-    return `The floor is open for deliberation on "${topic}". Raise points you think are important, respond to others, and work toward consensus. If you have nothing new to add, you may pass.`;
+    return `The floor is open for deliberation on "${topic}". Only contribute if you have a genuinely new perspective or argument not already covered by others. Do not repeat, rephrase, or echo what has already been said — that wastes everyone's time. If you have nothing new to add, say "I have nothing new to add" and pass.`;
   }
 
   buildVotingPrompt(topic: string, question: string): string {

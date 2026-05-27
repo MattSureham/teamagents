@@ -684,20 +684,28 @@ export class MeetingEngine {
 
     try {
       const started = Date.now();
-      const response = await agent.respond({
-        meetingId: this.id,
-        phase: this.currentPhase,
-        topic: this.topic,
-        background: this.context,
-        contextImages:
-          agent.supportsVision && this.contextImages.length > 0
-            ? this.contextImages
-            : undefined,
-        transcript: transcriptMessages,
-        speakingOrder: this.participantIds,
-        currentPrompt: promptText,
-        workDir: this.workDir,
-      });
+      const response = await Promise.race([
+        agent.respond({
+          meetingId: this.id,
+          phase: this.currentPhase,
+          topic: this.topic,
+          background: this.context,
+          contextImages:
+            agent.supportsVision && this.contextImages.length > 0
+              ? this.contextImages
+              : undefined,
+          transcript: transcriptMessages,
+          speakingOrder: this.participantIds,
+          currentPrompt: promptText,
+          workDir: this.workDir,
+        }),
+        new Promise<{ content: string }>((resolve) =>
+          setTimeout(
+            () => resolve({ content: `[${agent.name} did not respond within ${this.turnTimeoutMs}ms]` }),
+            this.turnTimeoutMs
+          )
+        ),
+      ]);
 
       this.addMessage(agent.id, agent.name, response.content, Date.now() - started);
       await this.checkpoint();

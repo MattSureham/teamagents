@@ -499,19 +499,34 @@ async function init() {
   $('#btn-browse').addEventListener('click', toggleBrowser);
   $('#btn-mkdir').addEventListener('click', createFolder);
 
-  // Restore meeting after page refresh
+  // Restore meeting after page refresh — verify with server first
   var savedId = sessionStorage.getItem('meetingId');
   if (savedId) {
     meetingId = savedId;
-    meetingActive = true;
-    updateUIForActive();
-    $('#download-log').style.display = 'inline';
-    $('#save-snapshot').style.display = 'inline';
     $('#meeting-title').textContent = sessionStorage.getItem('meetingTopic') || '';
-    updateStatus('active');
-    seenMessageCount = 0;
-    lastPhase = null;
-    startPolling();
+    // Fetch to check if the meeting is actually still running
+    fetch('/meetings/' + savedId).then(function(r) { return r.json(); }).then(function(meeting) {
+      if (meeting.status === 'active' && meeting.currentTurn) {
+        // Meeting is genuinely running — restore active state
+        meetingActive = true;
+        updateUIForActive();
+        $('#download-log').style.display = 'inline';
+        $('#save-snapshot').style.display = 'inline';
+        updateStatus('active');
+        seenMessageCount = 0;
+        lastPhase = null;
+        startPolling();
+      } else {
+        // Meeting is stale (server restarted, or it concluded while away)
+        clearMeetingState();
+        updateStatus('idle');
+        loadInterruptedMeetings();
+      }
+    }).catch(function() {
+      // Server unreachable — clear stale state
+      clearMeetingState();
+      updateStatus('idle');
+    });
   }
   $('#btn-mkdir').addEventListener('click', createFolder);
   $('#dir-browser-new-name').addEventListener('keydown', function(e) {
@@ -908,10 +923,10 @@ async function pollMeeting() {
     if (!res.ok) return;
     const meeting = await res.json();
 
-    // Connection restored — clear failure count and banner
+    // Connection restored — clear failure count and error banners only
     if (pollFailures > 0) {
       pollFailures = 0;
-      clearBanner();
+      if (lastBannerType === 'error') clearBanner();
     }
 
     updateStatus(meeting.status);
@@ -1030,11 +1045,13 @@ function updateStatus(status) {
   el.className = 'status ' + status;
 }
 
+let lastBannerType = '';
 function showBanner(type, msg) {
+  lastBannerType = type;
   const el = $('#banner-container');
   el.innerHTML = `<div class="banner banner-${type}">${escapeHtml(msg)}</div>`;
 }
-function clearBanner() { $('#banner-container').innerHTML = ''; }
+function clearBanner() { lastBannerType = ''; $('#banner-container').innerHTML = ''; }
 
 // ── Directory browser ──
 function toggleBrowser() {

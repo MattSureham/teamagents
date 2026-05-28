@@ -693,6 +693,13 @@ export class MeetingEngine {
       const engineTimeout = isBuildPhase
         ? (agent.timeoutMs ?? 1_800_000) + 60_000
         : Math.min(agent.timeoutMs ?? 300_000, 300_000) + 60_000;
+      // Per-turn abort controller: aborts on meeting cancel OR engine timeout.
+      // This ensures the subprocess is killed when the timeout fires instead of
+      // leaking an orphaned process that can later cause unhandled rejections.
+      const turnController = new AbortController();
+      const onMeetingAbort = () => turnController.abort();
+      this.abortController.signal.addEventListener('abort', onMeetingAbort, { once: true });
+
       const response = await Promise.race([
         agent.respond({
           meetingId: this.id,
@@ -707,15 +714,18 @@ export class MeetingEngine {
           speakingOrder: this.participantIds,
           currentPrompt: promptText,
           workDir: this.workDir,
-          signal: this.abortController.signal,
+          signal: turnController.signal,
         }),
         new Promise<{ content: string }>((resolve) =>
-          setTimeout(
-            () => resolve({ content: `[${agent.name} did not respond within ${engineTimeout}ms]` }),
-            engineTimeout
-          )
+          setTimeout(() => {
+            turnController.abort();
+            resolve({ content: `[${agent.name} did not respond within ${engineTimeout}ms]` });
+          }, engineTimeout)
         ),
       ]);
+
+      // Clean up the meeting-level abort listener (turn is done)
+      this.abortController.signal.removeEventListener('abort', onMeetingAbort);
 
       this.addMessage(agent.id, agent.name, response.content, Date.now() - started);
       await this.checkpoint();

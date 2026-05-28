@@ -38,11 +38,12 @@ export class ProtocolAgent implements IAgent {
 
   async respond(prompt: MeetingPrompt): Promise<AgentResponse> {
     const requestId = crypto.randomUUID();
+    const { signal, ...promptFields } = prompt;
     this.ws.send(
       JSON.stringify({
         type: 'meeting_prompt',
         requestId,
-        ...prompt,
+        ...promptFields,
       })
     );
 

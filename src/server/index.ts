@@ -13,6 +13,16 @@ export interface ServerInstance {
   registry: AgentRegistry;
 }
 
+// Prevent silent process death from unhandled rejections or uncaught exceptions.
+// Log the error and keep the process alive — a single failed agent turn should not
+// take down the entire server.
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] unhandled rejection:', reason instanceof Error ? reason.stack : reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[server] uncaught exception:', err.stack);
+});
+
 export async function createServer(configPath?: string): Promise<ServerInstance> {
   const config = loadConfig(configPath);
   const store = new JsonFileStore(config.server.dataDir);

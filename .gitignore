@@ -4,4 +4,4 @@ data/
 .env
 workspace/
 .claude/
-context/*
+context/*.DS_Store

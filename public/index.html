@@ -1394,10 +1394,13 @@ async function prepareContinue(id) {
 
     // Set settings
     if (meeting.config) {
-      $('#rebuttal-rounds').value = meeting.config.maxRebuttalRounds || 1;
-      $('#deliberation-turns').value = meeting.config.maxDeliberationRounds || 10;
-      $('#build-rounds').value = meeting.config.maxBuildRounds || 3;
-      $('#turn-timeout').value = meeting.config.turnTimeoutMs || 60000;
+      $('#rebuttal-rounds').value = meeting.config.maxRebuttalRounds ?? 1;
+      $('#deliberation-rounds').value = meeting.config.maxDeliberationRounds ?? 3;
+      $('#plan-rounds').value = meeting.config.maxPlanRounds ?? 1;
+      $('#build-rounds').value = meeting.config.maxBuildRounds ?? 3;
+      $('#review-rounds').value = meeting.config.maxReviewRounds ?? 1;
+      $('#max-total-rounds').value = meeting.config.maxTotalRounds ?? 50;
+      $('#turn-timeout').value = meeting.config.turnTimeoutMs ?? 60000;
     }
 
     // Select agents
@@ -1424,7 +1427,6 @@ async function prepareContinue(id) {
     var transcriptMsg = isRestart
       ? '<div class="transcript-empty"><div class="icon">🔄</div><p>Restart <strong>' + escapeHtml(meeting.topic) + '</strong></p><p style="color:#6b7280;font-size:12px;margin-top:4px">Same topic, agents, and settings — fresh transcript.</p><p style="color:#6b7280;font-size:12px">Set a working directory above if agents need to write files.</p></div>'
       : '<div class="transcript-empty"><div class="icon">🔄</div><p>Ready to ' + (isActive ? 'resume' : 'continue') + ' <strong>' + escapeHtml(meeting.topic) + '</strong></p><p style="color:#6b7280;font-size:12px;margin-top:4px">' + (meeting.transcript || []).length + ' prior messages &middot; was in phase: ' + (meeting.currentPhase || 'unknown') + '</p><p style="color:#6b7280;font-size:12px">Set a working directory above if agents need to write files.</p></div>';
-    $('#transcript-container').innerHTML = transcriptMsg;
     $('#transcript-container').innerHTML = transcriptMsg;
     $('#meeting-title').textContent = meeting.topic;
     updateStatus('idle');

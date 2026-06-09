@@ -74,7 +74,8 @@ agents:
     tool: generic
     capabilities: [coding, building, debugging, testing, architecture]
     command: codex
-    args: ["exec", "{prompt}", "--full-auto"]
+    args: ["exec", "--sandbox", "workspace-write", "--ephemeral", "-"]
+    promptMode: stdin
     timeoutMs: 1800000
 
   - id: opencode

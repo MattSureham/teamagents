@@ -353,6 +353,22 @@ export function createRouter(
           return json(res, 400, { error: `Meeting is ${stored.status}, not pending` });
         }
 
+        const existing = meetings.get(id);
+        if (existing) {
+          if (existing.running) {
+            return json(res, 400, { error: 'Meeting is already running' });
+          }
+
+          existing.running = existing.engine.start().then(() => {
+            meetings.delete(existing.engine.id);
+            store.saveMeeting(existing.engine.toStoredMeeting()).catch(() => {});
+            saveMeetingLog(config.server.dataDir, existing.engine);
+            teardownWorktree(existing.engine.id);
+          });
+
+          return json(res, 200, { id: existing.engine.id, status: 'active' });
+        }
+
         const participants = stored.participantIds
           .map((pid) => registry.get(pid))
           .filter((a): a is IAgent => a != null);
@@ -364,7 +380,8 @@ export function createRouter(
           participants,
           moderatorId: stored.moderatorId,
           mode: (stored.mode ?? config.meetings.mode) as 'debate' | 'collaboration',
-          turnTimeoutMs: config.meetings.turnTimeoutMs,
+          workDir: stored.config?.workDir,
+          turnTimeoutMs: stored.config?.turnTimeoutMs ?? config.meetings.turnTimeoutMs,
           maxRebuttalRounds: stored.config?.maxRebuttalRounds ?? config.meetings.maxRebuttalRounds,
           maxDeliberationRounds: stored.config?.maxDeliberationRounds ?? config.meetings.maxDeliberationRounds,
           maxPlanRounds: stored.config?.maxPlanRounds ?? config.meetings.maxPlanRounds,
@@ -384,10 +401,11 @@ export function createRouter(
         const running: RunningMeeting = { engine, running: null };
         meetings.set(engine.id, running);
         events.emit('meeting_started', engine.id, engine.participantIds);
-        engine.status = 'active';
         running.running = engine.start().then(() => {
+          meetings.delete(engine.id);
           store.saveMeeting(engine.toStoredMeeting()).catch(() => {});
           saveMeetingLog(config.server.dataDir, engine);
+          teardownWorktree(engine.id);
         });
 
         return json(res, 200, { id: engine.id, status: 'active' });

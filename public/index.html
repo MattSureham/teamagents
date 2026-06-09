@@ -734,7 +734,7 @@ async function startMeeting() {
   } else {
     body = JSON.stringify({
       topic, context, participantIds, moderatorId,
-      autoStart: true, mode, workDir,
+      autoStart: false, mode, workDir,
       maxRebuttalRounds: rebuttalRounds,
       maxDeliberationRounds: deliberationRounds,
       maxPlanRounds: planRounds,
@@ -764,10 +764,11 @@ async function startMeeting() {
     $('#download-log').style.display = 'inline';
     $('#save-snapshot').style.display = 'inline';
     $('#meeting-title').textContent = topic;
-    updateStatus('active');
     seenMessageCount = 0;
     lastPhase = null;
     $('#transcript-container').innerHTML = '';
+    pendingStartAfterSubscribe = !isContinue;
+    pendingStartSent = false;
 
     if (data.continuation) {
       showBanner('success', 'Continuing discussion from "' + (data.resumedFrom || 'unknown') + '" phase with ' + (data.transcriptLength || 0) + ' prior messages.');
@@ -777,6 +778,7 @@ async function startMeeting() {
       showBanner('success', 'Meeting started — agents are responding...');
     }
     startPolling();
+    updateStatus(isContinue ? 'active' : 'pending');
     loadInterruptedMeetings();
     loadPastMeetings();
   } catch(e) {
@@ -840,6 +842,8 @@ var ws = null;
 var wsReconnectTimer = null;
 var pollFailures = 0;
 var usePolling = false;
+var pendingStartAfterSubscribe = false;
+var pendingStartSent = false;
 
 function startPolling() {
   stopPolling();
@@ -883,7 +887,10 @@ function connectWebSocket() {
     var data;
     try { data = JSON.parse(event.data); } catch (e) { return; }
 
-    if (data.type === 'subscribed') return;
+    if (data.type === 'subscribed') {
+      maybeStartPendingMeeting();
+      return;
+    }
 
     if (data.type === 'meeting_event') {
       handleWSEvent(data);
@@ -913,6 +920,24 @@ function fallbackToPolling() {
   if (!pollTimer && meetingId) {
     pollTimer = setInterval(pollMeeting, 1500);
     pollMeeting();
+  }
+  maybeStartPendingMeeting();
+}
+
+async function maybeStartPendingMeeting() {
+  if (!pendingStartAfterSubscribe || pendingStartSent || !meetingId) return;
+  pendingStartSent = true;
+  try {
+    var res = await fetch('/meetings/' + meetingId + '/start', { method: 'POST' });
+    if (!res.ok) {
+      var e = await res.json();
+      throw new Error(e.error || 'Failed to start meeting');
+    }
+    pendingStartAfterSubscribe = false;
+    updateStatus('active');
+  } catch (e) {
+    pendingStartSent = false;
+    showBanner('error', 'Failed to start meeting: ' + escapeHtml(e.message));
   }
 }
 

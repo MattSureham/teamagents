@@ -1,0 +1,59 @@
+# ── Agent Meetings Docker Config ──
+# All API keys use ${ENV_VAR} placeholders — set them with docker run -e:
+#
+#   docker run -p 4200:4200 \
+#     -e ANTHROPIC_API_KEY=sk-ant-... \
+#     -e OPENAI_API_KEY=sk-... \
+#     -e DEEPSEEK_API_KEY=sk-... \
+#     ghcr.io/mattsureham/agent-meetings
+#
+# Only agents whose API keys you provide will work.
+# Mount your own config to /app/meetings.config.yml to customize.
+
+server:
+  port: 4200
+  host: "0.0.0.0"
+  dataDir: "./data"
+
+agents:
+  # ── Anthropic Claude ──
+  - id: anthropic
+    name: "Anthropic Claude"
+    type: llm
+    capabilities: [architecture, planning, coding, analysis, reasoning]
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    apiKey: "${ANTHROPIC_API_KEY}"
+
+  # ── OpenAI GPT-4o ──
+  - id: openai
+    name: "OpenAI GPT-4o"
+    type: llm
+    capabilities: [general, creative, brainstorming, coding, analysis]
+    provider: openai
+    model: gpt-4o
+    apiKey: "${OPENAI_API_KEY}"
+
+  # ── DeepSeek ──
+  - id: deepseek
+    name: "DeepSeek"
+    type: llm
+    capabilities: [architecture, planning, coding, analysis, reasoning]
+    provider: deepseek
+    model: deepseek-chat
+    apiKey: "${DEEPSEEK_API_KEY}"
+
+  # ── ChatGPT browser agent (free, no key needed) ──
+  - id: chatgpt
+    name: "ChatGPT"
+    type: browser
+    capabilities: [general, creative, brainstorming, coding]
+    site: chatgpt
+    timeoutMs: 120000
+
+meetings:
+  mode: debate
+  turnTimeoutMs: 60000
+  maxRebuttalRounds: 2
+  maxDeliberationRounds: 3
+  defaultModerator: deepseek

@@ -30,6 +30,7 @@ export interface MeetingConfig {
   maxPlanRounds?: number;
   maxBuildRounds?: number;
   maxReviewRounds?: number;
+  maxTotalRounds?: number;
   defaultLLM?: LLMAdapter;
   onTurnStart?: (agentName: string) => void;
   onTurnEnd?: (agentName: string) => void;
@@ -90,8 +91,10 @@ export class MeetingEngine {
   private maxPlanRounds: number;
   private maxBuildRounds: number;
   private maxReviewRounds: number;
+  private maxTotalRounds: number;
   private aborted = false;
   private totalTurns = 0;
+  private totalRounds = 0;
   reasonEnded: 'completed' | 'cancelled' = 'completed';
   currentTurn: string | null = null;
   workDir: string | undefined;
@@ -114,6 +117,7 @@ export class MeetingEngine {
     this.maxPlanRounds = config.maxPlanRounds ?? 1;
     this.maxBuildRounds = config.maxBuildRounds ?? 3;
     this.maxReviewRounds = config.maxReviewRounds ?? 1;
+    this.maxTotalRounds = config.maxTotalRounds ?? 50;
     this.createdAt = Date.now();
     this.participantIds = config.participants.map((a) => a.id);
 
@@ -172,9 +176,13 @@ export class MeetingEngine {
       context?: string;
       moderatorId?: string;
       mode?: 'debate' | 'collaboration';
+      maxRebuttalRounds?: number;
+      maxDeliberationRounds?: number;
       maxPlanRounds?: number;
       maxBuildRounds?: number;
       maxReviewRounds?: number;
+      maxTotalRounds?: number;
+      turnTimeoutMs?: number;
     } = {}
   ): MeetingEngine {
     const storedConfig = stored.config;
@@ -186,12 +194,13 @@ export class MeetingEngine {
       moderatorId: options.moderatorId ?? stored.moderatorId,
       mode: options.mode ?? (storedConfig?.mode ?? stored.mode) as 'debate' | 'collaboration',
       workDir: options.workDir ?? storedConfig?.workDir ?? undefined,
-      turnTimeoutMs: storedConfig?.turnTimeoutMs,
-      maxRebuttalRounds: storedConfig?.maxRebuttalRounds,
-      maxDeliberationRounds: storedConfig?.maxDeliberationRounds,
+      turnTimeoutMs: options.turnTimeoutMs ?? storedConfig?.turnTimeoutMs,
+      maxRebuttalRounds: options.maxRebuttalRounds ?? storedConfig?.maxRebuttalRounds,
+      maxDeliberationRounds: options.maxDeliberationRounds ?? storedConfig?.maxDeliberationRounds,
       maxPlanRounds: options.maxPlanRounds ?? storedConfig?.maxPlanRounds,
       maxBuildRounds: options.maxBuildRounds ?? storedConfig?.maxBuildRounds,
       maxReviewRounds: options.maxReviewRounds ?? storedConfig?.maxReviewRounds,
+      maxTotalRounds: options.maxTotalRounds ?? storedConfig?.maxTotalRounds,
       defaultLLM: options.defaultLLM,
       onTurnStart: options.onTurnStart,
       onTurnEnd: options.onTurnEnd,
@@ -213,6 +222,7 @@ export class MeetingEngine {
     engine.createdAt = stored.createdAt;
     engine.updatedAt = Date.now();
     engine.totalTurns = stored.totalTurns ?? stored.transcript.length;
+    engine.totalRounds = stored.totalRounds ?? 0;
     engine.reasonEnded = (stored.reasonEnded as 'completed' | 'cancelled') ?? 'completed';
     engine.concludedAt = stored.concludedAt;
     engine.summary = stored.summary;
@@ -276,6 +286,15 @@ export class MeetingEngine {
     return this.phaseIdx(this.currentPhase) <= this.phaseIdx(phase);
   }
 
+  private canRunRound(): boolean {
+    return this.totalRounds < this.maxTotalRounds;
+  }
+
+  private async finishRound(): Promise<void> {
+    this.totalRounds++;
+    await this.checkpoint();
+  }
+
   private async runDebate(): Promise<void> {
     // OPENING
     if (this.shouldEnterPhase(MeetingPhase.OPENING)) {
@@ -287,7 +306,10 @@ export class MeetingEngine {
     // POSITION
     if (this.shouldEnterPhase(MeetingPhase.POSITION)) {
       await this.advancePhase(MeetingPhase.POSITION);
-      await this.runRoundRobin(MeetingPhase.POSITION);
+      if (this.canRunRound()) {
+        const roundRan = await this.runRoundRobin(MeetingPhase.POSITION);
+        if (roundRan && !this.aborted) await this.finishRound();
+      }
       if (this.aborted) return;
     }
 
@@ -296,18 +318,19 @@ export class MeetingEngine {
       this.isResuming && this.currentPhase === MeetingPhase.REBUTTAL
         ? this.resumePoint.rebuttalRound
         : 0;
-    for (let r = startRebuttal; r < this.maxRebuttalRounds; r++) {
+    for (let r = startRebuttal; r < this.maxRebuttalRounds && this.canRunRound(); r++) {
       this.resumePoint.rebuttalRound = r;
       await this.advancePhase(MeetingPhase.REBUTTAL);
-      await this.runRoundRobin(MeetingPhase.REBUTTAL);
+      const roundRan = await this.runRoundRobin(MeetingPhase.REBUTTAL);
       if (this.aborted) break;
-      this.turnManager.resetRound();
+      if (!roundRan) break;
+      this.resumePoint.rebuttalRound = r + 1;
+      await this.finishRound();
     }
     if (this.aborted) return;
 
     // DELIBERATION
     if (this.shouldEnterPhase(MeetingPhase.DELIBERATION)) {
-      await this.advancePhase(MeetingPhase.DELIBERATION);
       await this.runDeliberation();
       if (this.aborted) return;
     }
@@ -333,12 +356,14 @@ export class MeetingEngine {
         this.isResuming && this.currentPhase === MeetingPhase.PLAN
           ? this.resumePoint.planRound ?? 0
           : 0;
-      for (let r = startPlan; r < this.maxPlanRounds; r++) {
+      for (let r = startPlan; r < this.maxPlanRounds && this.canRunRound(); r++) {
         this.resumePoint.planRound = r;
         await this.advancePhase(MeetingPhase.PLAN);
-        await this.runRoundRobin(MeetingPhase.PLAN);
+        const roundRan = await this.runRoundRobin(MeetingPhase.PLAN);
         if (this.aborted) break;
-        this.turnManager.resetRound();
+        if (!roundRan) break;
+        this.resumePoint.planRound = r + 1;
+        await this.finishRound();
       }
       if (this.aborted) return;
     }
@@ -349,12 +374,14 @@ export class MeetingEngine {
         this.isResuming && this.currentPhase === MeetingPhase.BUILD
           ? this.resumePoint.buildRound ?? 0
           : 0;
-      for (let r = startBuild; r < this.maxBuildRounds; r++) {
+      for (let r = startBuild; r < this.maxBuildRounds && this.canRunRound(); r++) {
         this.resumePoint.buildRound = r;
         await this.advancePhase(MeetingPhase.BUILD);
-        await this.runRoundRobin(MeetingPhase.BUILD);
+        const roundRan = await this.runRoundRobin(MeetingPhase.BUILD);
         if (this.aborted) break;
-        this.turnManager.resetRound();
+        if (!roundRan) break;
+        this.resumePoint.buildRound = r + 1;
+        await this.finishRound();
       }
       if (this.aborted) return;
     }
@@ -365,12 +392,14 @@ export class MeetingEngine {
         this.isResuming && this.currentPhase === MeetingPhase.REVIEW
           ? this.resumePoint.reviewRound ?? 0
           : 0;
-      for (let r = startReview; r < this.maxReviewRounds; r++) {
+      for (let r = startReview; r < this.maxReviewRounds && this.canRunRound(); r++) {
         this.resumePoint.reviewRound = r;
         await this.advancePhase(MeetingPhase.REVIEW);
-        await this.runRoundRobin(MeetingPhase.REVIEW);
+        const roundRan = await this.runRoundRobin(MeetingPhase.REVIEW);
         if (this.aborted) break;
-        this.turnManager.resetRound();
+        if (!roundRan) break;
+        this.resumePoint.reviewRound = r + 1;
+        await this.finishRound();
       }
     }
   }
@@ -422,6 +451,7 @@ export class MeetingEngine {
         maxPlanRounds: this.maxPlanRounds,
         maxBuildRounds: this.maxBuildRounds,
         maxReviewRounds: this.maxReviewRounds,
+        maxTotalRounds: this.maxTotalRounds,
         mode: this.mode,
         workDir: this.workDir,
       },
@@ -430,6 +460,7 @@ export class MeetingEngine {
       contextImages: this.contextImages.length > 0 ? this.contextImages : undefined,
       reasonEnded: this.reasonEnded,
       totalTurns: this.totalTurns,
+      totalRounds: this.totalRounds,
       lastCheckpointAt: Date.now(),
     };
   }
@@ -464,7 +495,7 @@ export class MeetingEngine {
     this.addMessage(this.moderator.systemModeratorId, this.moderator.systemModeratorName, openingText);
   }
 
-  private async runRoundRobin(phase: MeetingPhase): Promise<void> {
+  private async runRoundRobin(phase: MeetingPhase): Promise<boolean> {
     let participants = [...this.agents.values()];
 
     if (phase === MeetingPhase.BUILD) {
@@ -475,14 +506,14 @@ export class MeetingEngine {
           'Moderator',
           'No builder agents available for BUILD phase. Skipping.'
         );
-        return;
+        return false;
       }
     }
 
     this.turnManager.setRound(participants);
 
     while (!this.turnManager.allSpoken()) {
-      if (this.aborted) return;
+      if (this.aborted) return false;
       const speaker = this.turnManager.nextSpeaker();
       if (!speaker) break;
 
@@ -494,6 +525,8 @@ export class MeetingEngine {
         currentPrompt = this.moderator.buildPositionPrompt(this.topic, speaker.name);
       } else if (phase === MeetingPhase.REBUTTAL) {
         currentPrompt = this.moderator.buildRebuttalPrompt(this.topic, speaker.name);
+      } else if (phase === MeetingPhase.DELIBERATION) {
+        currentPrompt = this.moderator.buildDeliberationPrompt(this.topic, speaker.name);
       } else if (phase === MeetingPhase.PLAN) {
         currentPrompt = this.moderator.buildPlanPrompt(this.topic, speaker.name);
       } else if (phase === MeetingPhase.BUILD) {
@@ -504,62 +537,26 @@ export class MeetingEngine {
 
       await this.promptAgent(agent, currentPrompt);
 
-      const lastMessage = this.transcript
-        .slice()
-        .reverse()
-        .find((m) => m.authorId === agent.id);
-      if (lastMessage?.content.includes('[WISHES TO SPEAK]')) {
-        this.turnManager.raiseHand(agent.id);
-      }
+      // Rounds are fixed round-robin units. Agents may ask to continue in their
+      // response, but continuation is controlled by the configured round counts.
     }
+    return true;
   }
 
   private async runDeliberation(): Promise<void> {
-    let rounds = 0;
+    const startDeliberation =
+      this.isResuming && this.currentPhase === MeetingPhase.DELIBERATION
+        ? this.resumePoint.deliberationRound ?? 0
+        : 0;
 
-    const participants = [...this.agents.values()];
-    for (const agent of participants) {
-      if (this.aborted) return;
-      const prompt = this.moderator.buildDeliberationPrompt(this.topic, agent.name);
-      await this.promptAgent(agent, prompt);
-    }
-    rounds++;
-    if (rounds >= this.maxDeliberationRounds) return;
-
-    let stalemateCount = 0;
-
-    while (this.turnManager.handsRemaining() > 0 && rounds < this.maxDeliberationRounds) {
-      if (this.aborted) return;
-
-      const roundSpeakers: string[] = [];
-      while (this.turnManager.handsRemaining() > 0) {
-        const id = this.turnManager.getNextHand();
-        if (id) roundSpeakers.push(id);
-      }
-
-      for (const agentId of roundSpeakers) {
-        if (this.aborted) return;
-        const agent = this.agents.get(agentId);
-        if (!agent) continue;
-        const prompt = `You have the floor for deliberation on "${this.topic}". Make your point and respond to others. If the discussion is going in circles, suggest moving to a vote.`;
-        await this.promptAgent(agent, prompt);
-      }
-
-      rounds++;
-
-      if (this.turnManager.handsRemaining() === 0) {
-        stalemateCount++;
-        if (stalemateCount >= 2) {
-          this.addMessage(
-            '__system_moderator__',
-            'Moderator',
-            'Discussion appears to have reached a natural conclusion. Moving to voting.'
-          );
-          return;
-        }
-      } else {
-        stalemateCount = 0;
-      }
+    for (let r = startDeliberation; r < this.maxDeliberationRounds && this.canRunRound(); r++) {
+      this.resumePoint.deliberationRound = r;
+      await this.advancePhase(MeetingPhase.DELIBERATION);
+      const roundRan = await this.runRoundRobin(MeetingPhase.DELIBERATION);
+      if (this.aborted) break;
+      if (!roundRan) break;
+      this.resumePoint.deliberationRound = r + 1;
+      await this.finishRound();
     }
   }
 

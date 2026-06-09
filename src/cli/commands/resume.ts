@@ -16,7 +16,12 @@ export function resumeCommand(): Command {
     .option('-s, --server <url>', 'Delegate to a running server')
     .option('--context <string>', 'Override or add context for the continuation')
     .option('--moderator <id>', 'Override the moderator agent')
+    .option('--rebuttal-rounds <n>', 'Override max rebuttal rounds')
+    .option('--deliberation-rounds <n>', 'Override max deliberation rounds')
+    .option('--plan-rounds <n>', 'Override max plan rounds')
     .option('--build-rounds <n>', 'Override max build rounds', '3')
+    .option('--review-rounds <n>', 'Override max review rounds')
+    .option('--total-rounds <n>', 'Override max total rounds')
     .option('--no-stream', 'Do not stream transcript; only show summary at the end')
     .action(async (meetingId, options) => {
       // Server-delegated resume
@@ -141,7 +146,12 @@ export function resumeCommand(): Command {
         checkpointStore: store,
         context: options.context ?? undefined,
         moderatorId: options.moderator ?? undefined,
+        maxRebuttalRounds: options.rebuttalRounds ? parseInt(options.rebuttalRounds, 10) : undefined,
+        maxDeliberationRounds: options.deliberationRounds ? parseInt(options.deliberationRounds, 10) : undefined,
+        maxPlanRounds: options.planRounds ? parseInt(options.planRounds, 10) : undefined,
         maxBuildRounds: parseInt(options.buildRounds, 10),
+        maxReviewRounds: options.reviewRounds ? parseInt(options.reviewRounds, 10) : undefined,
+        maxTotalRounds: options.totalRounds ? parseInt(options.totalRounds, 10) : undefined,
         onTurnStart: (name) => {
           if (stream) {
             process.stdout.write(`  ⏳ Waiting for ${name}...`);

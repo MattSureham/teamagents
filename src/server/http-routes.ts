@@ -42,6 +42,10 @@ interface CreateMeetingBody {
   maxPlanRounds?: number;
   maxBuildRounds?: number;
   maxReviewRounds?: number;
+  maxRebuttalRounds?: number;
+  maxDeliberationRounds?: number;
+  maxTotalRounds?: number;
+  turnTimeoutMs?: number;
 }
 
 interface CreateAgentBody {
@@ -238,12 +242,13 @@ export function createRouter(
           moderatorId,
           mode: body.mode ?? config.meetings.mode,
           workDir: body.workDir,
-          turnTimeoutMs: config.meetings.turnTimeoutMs,
-          maxRebuttalRounds: config.meetings.maxRebuttalRounds,
-          maxDeliberationRounds: config.meetings.maxDeliberationRounds,
+          turnTimeoutMs: body.turnTimeoutMs ?? config.meetings.turnTimeoutMs,
+          maxRebuttalRounds: body.maxRebuttalRounds ?? config.meetings.maxRebuttalRounds,
+          maxDeliberationRounds: body.maxDeliberationRounds ?? config.meetings.maxDeliberationRounds,
           maxPlanRounds: body.maxPlanRounds ?? config.meetings.maxPlanRounds,
           maxBuildRounds: body.maxBuildRounds ?? config.meetings.maxBuildRounds,
           maxReviewRounds: body.maxReviewRounds ?? config.meetings.maxReviewRounds,
+          maxTotalRounds: body.maxTotalRounds ?? config.meetings.maxTotalRounds,
           defaultLLM: registry.getLLMAdapter(moderatorId) ?? undefined,
           checkpointStore: store,
           onTranscript: (msg) => events.emit('transcript', engine.id, msg),
@@ -358,12 +363,14 @@ export function createRouter(
           contextImages: stored.contextImages,
           participants,
           moderatorId: stored.moderatorId,
+          mode: (stored.mode ?? config.meetings.mode) as 'debate' | 'collaboration',
           turnTimeoutMs: config.meetings.turnTimeoutMs,
-          maxRebuttalRounds: config.meetings.maxRebuttalRounds,
-          maxDeliberationRounds: config.meetings.maxDeliberationRounds,
-          maxPlanRounds: config.meetings.maxPlanRounds,
-          maxBuildRounds: config.meetings.maxBuildRounds,
-          maxReviewRounds: config.meetings.maxReviewRounds,
+          maxRebuttalRounds: stored.config?.maxRebuttalRounds ?? config.meetings.maxRebuttalRounds,
+          maxDeliberationRounds: stored.config?.maxDeliberationRounds ?? config.meetings.maxDeliberationRounds,
+          maxPlanRounds: stored.config?.maxPlanRounds ?? config.meetings.maxPlanRounds,
+          maxBuildRounds: stored.config?.maxBuildRounds ?? config.meetings.maxBuildRounds,
+          maxReviewRounds: stored.config?.maxReviewRounds ?? config.meetings.maxReviewRounds,
+          maxTotalRounds: stored.config?.maxTotalRounds ?? config.meetings.maxTotalRounds,
           defaultLLM: registry.getLLMAdapter(stored.moderatorId) ?? undefined,
           resumeId: stored.id,
           checkpointStore: store,
@@ -397,6 +404,10 @@ export function createRouter(
           maxPlanRounds?: number;
           maxBuildRounds?: number;
           maxReviewRounds?: number;
+          maxRebuttalRounds?: number;
+          maxDeliberationRounds?: number;
+          maxTotalRounds?: number;
+          turnTimeoutMs?: number;
         }>(req);
 
         if (meetings.has(id)) {
@@ -455,9 +466,13 @@ export function createRouter(
           context: body.context ?? undefined,
           moderatorId: body.moderatorId ?? undefined,
           mode: body.mode ?? undefined,
+          turnTimeoutMs: body.turnTimeoutMs ?? undefined,
+          maxRebuttalRounds: body.maxRebuttalRounds ?? undefined,
+          maxDeliberationRounds: body.maxDeliberationRounds ?? undefined,
           maxPlanRounds: body.maxPlanRounds ?? undefined,
           maxBuildRounds: body.maxBuildRounds ?? undefined,
           maxReviewRounds: body.maxReviewRounds ?? undefined,
+          maxTotalRounds: body.maxTotalRounds ?? undefined,
           onTranscript: (msg) => events.emit('transcript', engine.id, msg),
           onPhaseChange: (phase) => events.emit('phase', engine.id, phase),
           onStatusChange: (status) => events.emit('status', engine.id, status),

@@ -135,7 +135,7 @@ describe('MeetingEngine', () => {
       context: '',
       participants: agents,
       maxRebuttalRounds: 0,
-      maxDeliberationRounds: 1,  // only round 1 (everyone), no hand-raising rounds
+      maxDeliberationRounds: 1,  // one full round-robin deliberation round
     });
 
     await engine.start();
@@ -145,5 +145,81 @@ describe('MeetingEngine', () => {
     expect(engine.reasonEnded).toBe('completed');
     expect(engine.summary).not.toBeNull();
     expect(engine.transcript.length).toBeGreaterThan(0);
+  });
+
+  it('runs deliberation as configured full round-robin rounds', async () => {
+    const agents = [
+      new MockAgent('a1', 'Alice', ['general']),
+      new MockAgent('a2', 'Bob', ['general']),
+      new MockAgent('a3', 'Carol', ['general']),
+    ];
+
+    const engine = new MeetingEngine({
+      topic: 'Round semantics',
+      context: '',
+      participants: agents,
+      maxRebuttalRounds: 0,
+      maxDeliberationRounds: 2,
+    });
+
+    await engine.start();
+
+    const deliberationMessages = engine.transcript.filter(
+      (m) => m.phase === 'deliberation' && m.authorId !== '__system_moderator__'
+    );
+    expect(deliberationMessages).toHaveLength(6);
+  });
+
+  it('runs build rounds as builder round-robin rounds', async () => {
+    class BuilderAgent extends MockAgent {
+      override readonly type = 'subprocess';
+    }
+
+    const agents = [
+      new BuilderAgent('b1', 'Builder One', ['coding']),
+      new BuilderAgent('b2', 'Builder Two', ['coding']),
+      new MockAgent('advisor', 'Advisor', ['review']),
+    ];
+
+    const engine = new MeetingEngine({
+      topic: 'Build round semantics',
+      context: '',
+      participants: agents,
+      mode: 'collaboration',
+      maxPlanRounds: 0,
+      maxBuildRounds: 2,
+      maxReviewRounds: 0,
+    });
+
+    await engine.start();
+
+    const buildMessages = engine.transcript.filter(
+      (m) => m.phase === 'build' && m.authorId !== '__system_moderator__'
+    );
+    expect(buildMessages).toHaveLength(4);
+    expect(buildMessages.map((m) => m.authorId)).toEqual(['b1', 'b2', 'b1', 'b2']);
+  });
+
+  it('caps discussion work by maxTotalRounds', async () => {
+    const agents = [
+      new MockAgent('a1', 'Alice', ['general']),
+      new MockAgent('a2', 'Bob', ['general']),
+    ];
+
+    const engine = new MeetingEngine({
+      topic: 'Total round cap',
+      context: '',
+      participants: agents,
+      maxRebuttalRounds: 2,
+      maxDeliberationRounds: 2,
+      maxTotalRounds: 1,
+    });
+
+    await engine.start();
+
+    const stored = engine.toStoredMeeting();
+    expect(stored.totalRounds).toBe(1);
+    expect(engine.transcript.some((m) => m.phase === 'rebuttal')).toBe(false);
+    expect(engine.transcript.some((m) => m.phase === 'deliberation')).toBe(false);
   });
 });

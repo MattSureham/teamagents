@@ -55,6 +55,7 @@ export interface TurnManagerState {
 
 export interface ResumePoint {
   rebuttalRound: number;
+  deliberationRound?: number;
   planRound?: number;
   buildRound?: number;
   reviewRound?: number;
@@ -67,6 +68,7 @@ export interface StoredMeetingConfig {
   maxPlanRounds?: number;
   maxBuildRounds?: number;
   maxReviewRounds?: number;
+  maxTotalRounds?: number;
   mode: string;
   workDir?: string;
 }
@@ -94,5 +96,6 @@ export interface StoredMeeting {
   contextImages?: { data: string; mimeType: string }[];
   reasonEnded?: string;
   totalTurns?: number;
+  totalRounds?: number;
   lastCheckpointAt?: number;
 }

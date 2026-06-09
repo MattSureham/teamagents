@@ -46,12 +46,13 @@ async function handleCreateMeeting(input: CreateMeetingInput, ctx: ToolContext) 
     moderatorId,
     mode: input.mode ?? ctx.config.meetings.mode,
     workDir: input.workDir,
-    turnTimeoutMs: ctx.config.meetings.turnTimeoutMs,
-    maxRebuttalRounds: ctx.config.meetings.maxRebuttalRounds,
-    maxDeliberationRounds: ctx.config.meetings.maxDeliberationRounds,
+    turnTimeoutMs: input.turnTimeoutMs ?? ctx.config.meetings.turnTimeoutMs,
+    maxRebuttalRounds: input.maxRebuttalRounds ?? ctx.config.meetings.maxRebuttalRounds,
+    maxDeliberationRounds: input.maxDeliberationRounds ?? ctx.config.meetings.maxDeliberationRounds,
     maxPlanRounds: input.maxPlanRounds ?? ctx.config.meetings.maxPlanRounds,
     maxBuildRounds: input.maxBuildRounds ?? ctx.config.meetings.maxBuildRounds,
     maxReviewRounds: input.maxReviewRounds ?? ctx.config.meetings.maxReviewRounds,
+    maxTotalRounds: input.maxTotalRounds ?? ctx.config.meetings.maxTotalRounds,
     defaultLLM: ctx.registry.getLLMAdapter(moderatorId) ?? undefined,
     checkpointStore: ctx.store,
   });
@@ -172,6 +173,13 @@ async function handleResumeMeeting(input: ResumeMeetingInput, ctx: ToolContext) 
     checkpointStore: ctx.store,
     workDir: input.workDir,
     context: input.context,
+    turnTimeoutMs: input.turnTimeoutMs,
+    maxRebuttalRounds: input.maxRebuttalRounds,
+    maxDeliberationRounds: input.maxDeliberationRounds,
+    maxPlanRounds: input.maxPlanRounds,
+    maxBuildRounds: input.maxBuildRounds,
+    maxReviewRounds: input.maxReviewRounds,
+    maxTotalRounds: input.maxTotalRounds,
   });
 
   const running: RunningMeeting = { engine, running: null };

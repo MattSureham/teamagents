@@ -206,5 +206,6 @@ function validateConfig(config: Config): void {
   config.meetings.maxPlanRounds = config.meetings.maxPlanRounds ?? 1;
   config.meetings.maxBuildRounds = config.meetings.maxBuildRounds ?? 3;
   config.meetings.maxReviewRounds = config.meetings.maxReviewRounds ?? 1;
+  config.meetings.maxTotalRounds = config.meetings.maxTotalRounds ?? 50;
   config.meetings.turnTimeoutMs = config.meetings.turnTimeoutMs ?? 60_000;
 }

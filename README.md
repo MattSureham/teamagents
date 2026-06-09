@@ -263,7 +263,7 @@ schedule → PENDING → start → OPENING → POSITION → REBUTTAL ─┬→ D
 
 **REBUTTAL** — Round-robin. Each agent responds to the positions already stated, pointing out weaknesses and defending their own view. Configurable number of rounds (`maxRebuttalRounds`, default 1). Prompt: *"You have heard the positions stated so far. Please offer your rebuttal..."*
 
-**DELIBERATION** — Free-form discussion. Each agent gets one initial turn to raise points. After that, agents that indicated they want to speak more get additional turns from a FIFO queue. Capped at `maxDeliberationRounds` (default 3). Prompt: *"The floor is open for deliberation..."*
+**DELIBERATION** — Free-form discussion in fixed round-robin rounds. Each configured deliberation round gives every participant one turn. Capped at `maxDeliberationRounds` (default 3). Prompt: *"The floor is open for deliberation..."*
 
 **VOTING** — Each agent is asked a structured yes/no question about the emerging consensus. Responses are parsed for "VOTE: YES" / "VOTE: NO" to produce a tally.
 
@@ -705,7 +705,7 @@ Then open **`http://127.0.0.1:4200/`** in a browser. The web console provides:
 - **Topic & context** — type or upload a `.txt`/`.md`/`.pdf`/`.docx` file
 - **Mode toggle** — debate or collaboration
 - **Working directory** — shared folder for agents to build in, with directory browser and git worktree isolation option
-- **Settings** — rebuttal rounds, deliberation turns, build rounds, max turns, timeout, moderator
+- **Settings** — rebuttal rounds, deliberation rounds, plan/build/review rounds, max total rounds, timeout, moderator
 - **Live transcript** — messages stream in real time via WebSocket with phase dividers and colored avatars
 - **Summary** — consensus, key points, action items, vote tally, deliverables on conclusion
 - **Download** — save transcript log or full HTML snapshot of any meeting
@@ -762,10 +762,11 @@ LLM-specific fields:
 | `mode` | `debate` \| `collaboration` | `debate` | Meeting mode — debate for structured discussion, collaboration for planning + building |
 | `turnTimeoutMs` | number | 60000 | Max time an agent has to respond to a turn |
 | `maxRebuttalRounds` | number | 1 | How many rounds of rebuttal before deliberation |
-| `maxDeliberationRounds` | number | 3 | How many deliberation rounds (hand-raising for more turns) |
+| `maxDeliberationRounds` | number | 3 | How many full round-robin deliberation rounds |
 | `maxPlanRounds` | number | 1 | Collaboration only — plan iteration rounds |
 | `maxBuildRounds` | number | 3 | Collaboration only — build iteration rounds |
 | `maxReviewRounds` | number | 1 | Collaboration only — review iteration rounds |
+| `maxTotalRounds` | number | 50 | Max discussion/build rounds before moving to summary |
 | `defaultModerator` | string | — | Agent ID to use as moderator if none specified in the meeting |
 | `worktree.enabled` | boolean | false | Always isolate in git worktrees |
 | `worktree.baseRef` | string | HEAD | Git ref to branch worktrees from |
@@ -790,8 +791,11 @@ agent-meetings run -t <topic> -a <agent-ids> [options]
   --worktree                   Create an isolated git worktree as the working directory
   --turn-timeout <ms>          Turn timeout in ms (default: 60000)
   --rebuttal-rounds <n>        Max rebuttal rounds (default: 1)
-  --deliberation-turns <n>     Max deliberation turns (default: 10)
-  --max-turns <n>              Max total turns before forcing conclusion (default: 50)
+  --deliberation-rounds <n>    Max deliberation rounds (default: 3)
+  --plan-rounds <n>            Max plan rounds in collaboration mode (default: 1)
+  --build-rounds <n>           Max build rounds in collaboration mode (default: 3)
+  --review-rounds <n>          Max review rounds in collaboration mode (default: 1)
+  --total-rounds <n>           Max total rounds before summary (default: 50)
   --no-stream                  Only show summary, not live transcript
 
 agent-meetings resume <meeting-id> [options]

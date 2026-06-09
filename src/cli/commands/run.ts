@@ -21,10 +21,11 @@ export function runCommand(): Command {
     .option('-c, --config <path>', 'Path to config file', './meetings.config.yml')
     .option('--turn-timeout <ms>', 'Turn timeout in ms', '60000')
     .option('--rebuttal-rounds <n>', 'Max rebuttal rounds', '1')
-    .option('--deliberation-rounds <n>', 'Max deliberation rounds (each round, every hand-raiser speaks)', '3')
+    .option('--deliberation-rounds <n>', 'Max deliberation rounds (each round, every participant speaks)', '3')
     .option('--plan-rounds <n>', 'Max plan rounds (collaboration)', '1')
     .option('--build-rounds <n>', 'Max build rounds (collaboration)', '3')
     .option('--review-rounds <n>', 'Max review rounds (collaboration)', '1')
+    .option('--total-rounds <n>', 'Max total rounds before summary', '50')
     .option('--mode <mode>', 'Meeting mode: debate or collaboration', 'debate')
     .option('--work-dir <path>', 'Shared working directory for agents to build in (collaboration mode)')
     .option('--worktree', 'Create an isolated git worktree as the working directory (collaboration mode)')
@@ -144,6 +145,7 @@ export function runCommand(): Command {
         maxPlanRounds: parseInt(options.planRounds, 10),
         maxBuildRounds: parseInt(options.buildRounds, 10),
         maxReviewRounds: parseInt(options.reviewRounds, 10),
+        maxTotalRounds: parseInt(options.totalRounds, 10),
         defaultLLM: registry.getLLMAdapter(moderatorId) ?? undefined,
         onTurnStart: (name) => {
           if (stream) {

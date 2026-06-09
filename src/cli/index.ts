@@ -18,7 +18,7 @@ program
   .name('agent-meetings')
   .alias('am')
   .description('Framework for structured technical meetings between AI agents and LLMs')
-  .version('0.1.0');
+  .version('2.0.0');
 
 program.addCommand(runCommand());
 program.addCommand(resumeCommand());

@@ -203,6 +203,10 @@ meetings:
   turnTimeoutMs: 60000
   maxRebuttalRounds: 2
   maxDeliberationRounds: 3
+  maxPlanRounds: 1
+  maxBuildRounds: 3
+  maxReviewRounds: 1
+  maxTotalRounds: 50
   defaultModerator: deepseek
 
   presets:

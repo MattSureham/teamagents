@@ -11,9 +11,13 @@ export const createMeetingSchema = z.object({
   mode: meetingModeSchema.optional().describe('Meeting mode: debate or collaboration'),
   workDir: z.string().optional().describe('Working directory for collaboration meetings'),
   autoStart: z.boolean().optional().describe('Whether to auto-start the meeting (default true)'),
-  maxPlanRounds: z.number().int().min(1).max(20).optional(),
-  maxBuildRounds: z.number().int().min(1).max(20).optional(),
-  maxReviewRounds: z.number().int().min(1).max(20).optional(),
+  turnTimeoutMs: z.number().int().min(1000).optional(),
+  maxRebuttalRounds: z.number().int().min(0).max(20).optional(),
+  maxDeliberationRounds: z.number().int().min(0).max(20).optional(),
+  maxPlanRounds: z.number().int().min(0).max(20).optional(),
+  maxBuildRounds: z.number().int().min(0).max(20).optional(),
+  maxReviewRounds: z.number().int().min(0).max(20).optional(),
+  maxTotalRounds: z.number().int().min(1).max(100).optional(),
 });
 
 export const listMeetingsSchema = z.object({
@@ -34,6 +38,13 @@ export const resumeMeetingSchema = z.object({
   participantIds: z.array(z.string()).optional().describe('Override participant agent IDs'),
   workDir: z.string().optional().describe('Override working directory'),
   context: z.string().optional().describe('Additional context for the continuation'),
+  turnTimeoutMs: z.number().int().min(1000).optional(),
+  maxRebuttalRounds: z.number().int().min(0).max(20).optional(),
+  maxDeliberationRounds: z.number().int().min(0).max(20).optional(),
+  maxPlanRounds: z.number().int().min(0).max(20).optional(),
+  maxBuildRounds: z.number().int().min(0).max(20).optional(),
+  maxReviewRounds: z.number().int().min(0).max(20).optional(),
+  maxTotalRounds: z.number().int().min(1).max(100).optional(),
 });
 
 export const getAgentSchema = z.object({

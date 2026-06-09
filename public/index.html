@@ -142,6 +142,64 @@
 .dir-entry:hover { background: #252830; }
 .dir-entry .select-link { color: #4f8fff; font-size: 11px; padding: 2px 6px; border-radius: 4px; }
 .dir-entry .select-link:hover { background: #1a2740; }
+
+  @media (max-width: 900px) {
+    body {
+      height: auto;
+      min-height: 100vh;
+      display: block;
+    }
+
+    .sidebar {
+      width: 100%;
+      min-width: 0;
+      max-height: none;
+      border-right: none;
+      border-bottom: 1px solid #252830;
+    }
+
+    .sidebar-header,
+    .sidebar-body,
+    .main-header,
+    .main-body,
+    .status-bar {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .main {
+      min-width: 0;
+      min-height: 40vh;
+    }
+
+    .main-header {
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .main-header h2 {
+      width: 100%;
+    }
+
+    .settings-grid {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .file-upload {
+      flex-direction: column;
+    }
+
+    .file-name {
+      width: 100%;
+    }
+
+    .msg {
+      padding-left: 0;
+      padding-right: 0;
+    }
+  }
 </style>
 </head>
 <body>
@@ -257,9 +315,11 @@
 
     <div class="settings-grid">
       <div><label>Rebuttal Rounds</label><input type="number" id="rebuttal-rounds" value="1" min="0" max="10"></div>
-      <div><label>Deliberation Turns</label><input type="number" id="deliberation-turns" value="10" min="1" max="100"></div>
-      <div><label>Build Rounds</label><input type="number" id="build-rounds" value="3" min="1" max="20"></div>
-      <div><label>Max Total Turns</label><input type="number" id="max-turns" value="50" min="5" max="500"></div>
+      <div><label>Deliberation Rounds</label><input type="number" id="deliberation-rounds" value="3" min="0" max="20"></div>
+      <div><label>Plan Rounds</label><input type="number" id="plan-rounds" value="1" min="0" max="20"></div>
+      <div><label>Build Rounds</label><input type="number" id="build-rounds" value="3" min="0" max="20"></div>
+      <div><label>Review Rounds</label><input type="number" id="review-rounds" value="1" min="0" max="20"></div>
+      <div><label>Max Total Rounds</label><input type="number" id="max-total-rounds" value="50" min="1" max="100"></div>
       <div><label>Turn Timeout (ms)</label><input type="number" id="turn-timeout" value="60000" min="5000" step="5000"></div>
     </div>
 
@@ -337,7 +397,7 @@ const TEMPLATES = [
       { capability: 'coding', desc: 'reviewer' },
     ],
     moderatorPreference: { capability: 'architecture' },
-    settings: { rebuttal: 1, deliberation: 5, build: 1, maxTurns: 30, timeout: 60000 },
+    settings: { rebuttal: 1, deliberation: 2, plan: 1, build: 1, review: 1, total: 30, timeout: 60000 },
   },
   {
     id: 'brainstorming',
@@ -351,7 +411,7 @@ const TEMPLATES = [
       { capability: 'general', desc: 'generalist' },
     ],
     moderatorPreference: { capability: 'general' },
-    settings: { rebuttal: 2, deliberation: 10, build: 0, maxTurns: 50, timeout: 60000 },
+    settings: { rebuttal: 2, deliberation: 3, plan: 2, build: 1, review: 1, total: 50, timeout: 60000 },
   },
   {
     id: 'architecture',
@@ -364,7 +424,7 @@ const TEMPLATES = [
       { capability: 'planning', desc: 'planner' },
     ],
     moderatorPreference: { capability: 'architecture' },
-    settings: { rebuttal: 2, deliberation: 5, build: 1, maxTurns: 30, timeout: 120000 },
+    settings: { rebuttal: 2, deliberation: 2, plan: 1, build: 1, review: 1, total: 30, timeout: 120000 },
   },
 ];
 
@@ -428,9 +488,11 @@ function applyTemplate(templateId) {
 
   if (tmpl.settings) {
     $('#rebuttal-rounds').value = tmpl.settings.rebuttal;
-    $('#deliberation-turns').value = tmpl.settings.deliberation;
+    $('#deliberation-rounds').value = tmpl.settings.deliberation;
+    $('#plan-rounds').value = tmpl.settings.plan;
     $('#build-rounds').value = tmpl.settings.build;
-    $('#max-turns').value = tmpl.settings.maxTurns;
+    $('#review-rounds').value = tmpl.settings.review;
+    $('#max-total-rounds').value = tmpl.settings.total;
     $('#turn-timeout').value = tmpl.settings.timeout;
   }
 
@@ -634,7 +696,13 @@ async function startMeeting() {
   const moderatorId = $('#moderator').value;
   const mode = getMode();
   const workDir = $('#workdir').value.trim() || undefined;
-  const buildRounds = parseInt($('#build-rounds').value) || 3;
+  const rebuttalRounds = parseInt($('#rebuttal-rounds').value) || 0;
+  const deliberationRounds = parseInt($('#deliberation-rounds').value) || 0;
+  const planRounds = Number.isNaN(parseInt($('#plan-rounds').value)) ? 1 : parseInt($('#plan-rounds').value);
+  const buildRounds = Number.isNaN(parseInt($('#build-rounds').value)) ? 3 : parseInt($('#build-rounds').value);
+  const reviewRounds = Number.isNaN(parseInt($('#review-rounds').value)) ? 1 : parseInt($('#review-rounds').value);
+  const maxTotalRounds = parseInt($('#max-total-rounds').value) || 50;
+  const turnTimeoutMs = parseInt($('#turn-timeout').value) || 60000;
   const worktree = $('#worktree').checked || undefined;
 
   if (!topic || participantIds.length < 2) return;
@@ -654,13 +722,26 @@ async function startMeeting() {
       participantIds: participantIds,
       moderatorId: moderatorId,
       mode: mode,
+      maxRebuttalRounds: rebuttalRounds,
+      maxDeliberationRounds: deliberationRounds,
+      maxPlanRounds: planRounds,
       maxBuildRounds: buildRounds,
+      maxReviewRounds: reviewRounds,
+      maxTotalRounds: maxTotalRounds,
+      turnTimeoutMs: turnTimeoutMs,
       worktree: worktree,
     });
   } else {
     body = JSON.stringify({
       topic, context, participantIds, moderatorId,
-      autoStart: true, mode, workDir, maxBuildRounds: buildRounds,
+      autoStart: true, mode, workDir,
+      maxRebuttalRounds: rebuttalRounds,
+      maxDeliberationRounds: deliberationRounds,
+      maxPlanRounds: planRounds,
+      maxBuildRounds: buildRounds,
+      maxReviewRounds: reviewRounds,
+      maxTotalRounds: maxTotalRounds,
+      turnTimeoutMs: turnTimeoutMs,
       worktree: worktree,
     });
   }

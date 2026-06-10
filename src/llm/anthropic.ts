@@ -1,5 +1,6 @@
 import type { ChatMessage, LLMAdapter, ContentBlock } from './types.js';
 import { getTextContent } from './types.js';
+import { requestLLM } from './rate-limit.js';
 
 export class AnthropicAdapter implements LLMAdapter {
   readonly provider = 'anthropic';
@@ -14,7 +15,7 @@ export class AnthropicAdapter implements LLMAdapter {
     const systemMsg = messages.find((m) => m.role === 'system');
     const chatMessages = messages.filter((m) => m.role !== 'system');
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await requestLLM(this.provider, () => fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': this.apiKey,
@@ -30,7 +31,7 @@ export class AnthropicAdapter implements LLMAdapter {
           content: toAnthropicContent(m.content),
         })),
       }),
-    });
+    }));
 
     if (!response.ok) {
       const err = await response.text();

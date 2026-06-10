@@ -1,4 +1,5 @@
 import type { ChatMessage, LLMAdapter } from './types.js';
+import { requestLLM } from './rate-limit.js';
 
 export class QwenAdapter implements LLMAdapter {
   readonly provider = 'qwen';
@@ -10,7 +11,7 @@ export class QwenAdapter implements LLMAdapter {
   ) {}
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const response = await fetch(
+    const response = await requestLLM(this.provider, () => fetch(
       'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
       {
         method: 'POST',
@@ -24,7 +25,7 @@ export class QwenAdapter implements LLMAdapter {
           max_tokens: 4096,
         }),
       }
-    );
+    ));
 
     if (!response.ok) {
       const err = await response.text();

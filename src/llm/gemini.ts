@@ -1,4 +1,5 @@
 import type { ChatMessage, LLMAdapter } from './types.js';
+import { requestLLM } from './rate-limit.js';
 
 export class GeminiAdapter implements LLMAdapter {
   readonly provider = 'gemini';
@@ -33,11 +34,11 @@ export class GeminiAdapter implements LLMAdapter {
       };
     }
 
-    const response = await fetch(url.toString(), {
+    const response = await requestLLM(this.provider, () => fetch(url.toString(), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
-    });
+    }));
 
     if (!response.ok) {
       const err = await response.text();

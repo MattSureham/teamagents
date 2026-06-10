@@ -1054,6 +1054,19 @@ Run `npx tsx src/cli/index.ts config validate` to check your config.
 2. Verify the key is valid on the provider's console
 3. Make sure the `apiKey` field in your config references the right env var: `apiKey: "${DEEPSEEK_API_KEY}"`
 
+### API rate limits
+
+**Symptom:** `429`, `Too Many Requests`, or intermittent provider `5xx` errors when several LLM agents speak in the same meeting.
+
+**Fix:** LLM calls are rate-limited per provider by default: one provider request starts every 1000ms, and retryable responses (`408`, `429`, `5xx`) are retried up to 3 times. Tune these env vars if your provider allows more or less traffic:
+
+```bash
+AGENT_MEETINGS_LLM_MIN_INTERVAL_MS=1000
+AGENT_MEETINGS_LLM_MAX_RETRIES=3
+AGENT_MEETINGS_LLM_INITIAL_BACKOFF_MS=1000
+AGENT_MEETINGS_LLM_MAX_BACKOFF_MS=30000
+```
+
 ### Agent not found
 
 **Symptom:** `Agent "xxx" not found in config`

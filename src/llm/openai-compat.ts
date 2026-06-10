@@ -1,4 +1,5 @@
 import type { ChatMessage, LLMAdapter } from './types.js';
+import { requestLLM } from './rate-limit.js';
 
 export class OpenAICompatAdapter implements LLMAdapter {
   readonly provider = 'openai-compat';
@@ -14,7 +15,7 @@ export class OpenAICompatAdapter implements LLMAdapter {
   }
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const response = await fetch(
+    const response = await requestLLM(this.provider, () => fetch(
       `${this.endpoint}/chat/completions`,
       {
         method: 'POST',
@@ -28,7 +29,7 @@ export class OpenAICompatAdapter implements LLMAdapter {
           max_tokens: 4096,
         }),
       }
-    );
+    ));
 
     if (!response.ok) {
       const err = await response.text();

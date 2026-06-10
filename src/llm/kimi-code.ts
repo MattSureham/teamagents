@@ -1,4 +1,5 @@
 import type { ChatMessage, LLMAdapter } from './types.js';
+import { requestLLM } from './rate-limit.js';
 
 export class KimiCodeAdapter implements LLMAdapter {
   readonly provider = 'kimi-code';
@@ -9,7 +10,7 @@ export class KimiCodeAdapter implements LLMAdapter {
   ) {}
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const response = await fetch(
+    const response = await requestLLM(this.provider, () => fetch(
       'https://api.kimi.com/coding/v1/chat/completions',
       {
         method: 'POST',
@@ -23,7 +24,7 @@ export class KimiCodeAdapter implements LLMAdapter {
           max_tokens: 4096,
         }),
       }
-    );
+    ));
 
     if (!response.ok) {
       const err = await response.text();

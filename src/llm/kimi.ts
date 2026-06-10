@@ -1,4 +1,5 @@
 import type { ChatMessage, LLMAdapter } from './types.js';
+import { requestLLM } from './rate-limit.js';
 
 export class KimiAdapter implements LLMAdapter {
   readonly provider = 'kimi';
@@ -10,7 +11,7 @@ export class KimiAdapter implements LLMAdapter {
   ) {}
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
+    const response = await requestLLM(this.provider, () => fetch('https://api.moonshot.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -21,7 +22,7 @@ export class KimiAdapter implements LLMAdapter {
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
         max_tokens: 4096,
       }),
-    });
+    }));
 
     if (!response.ok) {
       const err = await response.text();

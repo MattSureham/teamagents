@@ -73,6 +73,13 @@ export function createRouter(
     }
   }
 
+  function emitStatusChange(meetingId: string, status: string): void {
+    events.emit('status', meetingId, status);
+    if (status === 'concluded' || status === 'cancelled') {
+      teardownWorktree(meetingId);
+    }
+  }
+
   // Detect interrupted meetings from a previous server run
   store.listMeetings({ status: 'active' }).then((active) => {
     if (active.length > 0) {
@@ -253,12 +260,7 @@ export function createRouter(
           checkpointStore: store,
           onTranscript: (msg) => events.emit('transcript', engine.id, msg),
           onPhaseChange: (phase) => events.emit('phase', engine.id, phase),
-          onStatusChange: (status) => {
-            events.emit('status', engine.id, status);
-            if (status === 'concluded' || status === 'cancelled') {
-              teardownWorktree(engine.id);
-            }
-          },
+          onStatusChange: (status) => emitStatusChange(engine.id, status),
           onTurnStart: (name) => events.emit('turn_start', engine.id, name),
           onTurnEnd: (name) => events.emit('turn_end', engine.id, name),
         });
@@ -393,7 +395,7 @@ export function createRouter(
           checkpointStore: store,
           onTranscript: (msg) => events.emit('transcript', engine.id, msg),
           onPhaseChange: (phase) => events.emit('phase', engine.id, phase),
-          onStatusChange: (status) => events.emit('status', engine.id, status),
+          onStatusChange: (status) => emitStatusChange(engine.id, status),
           onTurnStart: (name) => events.emit('turn_start', engine.id, name),
           onTurnEnd: (name) => events.emit('turn_end', engine.id, name),
         });
@@ -493,7 +495,7 @@ export function createRouter(
           maxTotalRounds: body.maxTotalRounds ?? undefined,
           onTranscript: (msg) => events.emit('transcript', engine.id, msg),
           onPhaseChange: (phase) => events.emit('phase', engine.id, phase),
-          onStatusChange: (status) => events.emit('status', engine.id, status),
+          onStatusChange: (status) => emitStatusChange(engine.id, status),
           onTurnStart: (name) => events.emit('turn_start', engine.id, name),
           onTurnEnd: (name) => events.emit('turn_end', engine.id, name),
         });

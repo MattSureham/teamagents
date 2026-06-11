@@ -130,7 +130,7 @@ export const SUBPROCESS_TOOLS: Record<string, SubprocessToolEntry> = {
     name: 'Codex (OpenAI)',
     description: 'OpenAI Codex CLI — coding agent with sandboxed execution',
     command: 'codex',
-    defaultArgs: ['exec', '{prompt}', '--full-auto'],
+    defaultArgs: ['exec', '--skip-git-repo-check', '{prompt}', '--full-auto'],
     defaultPromptMode: 'argument',
     defaultTimeoutMs: 1_800_000,
   },

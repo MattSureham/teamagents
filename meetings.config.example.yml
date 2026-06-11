@@ -71,7 +71,7 @@ agents:
     tool: generic
     capabilities: [coding, building, debugging, testing, architecture]
     command: codex
-    args: ["exec", "--sandbox", "workspace-write", "--ephemeral", "-"]
+    args: ["exec", "--sandbox", "workspace-write", "--skip-git-repo-check", "--ephemeral", "-"]
     promptMode: stdin
     timeoutMs: 1800000
 

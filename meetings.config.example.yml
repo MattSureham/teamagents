@@ -143,6 +143,7 @@ agents:
     provider: minimax
     model: abab6.5s-chat
     apiKey: "${MINIMAX_API_KEY}"
+    vision: true
 
   - id: minimax-m2.7
     name: "MiniMax M2.7"
@@ -150,6 +151,15 @@ agents:
     capabilities: [brainstorming, creative, design, writing, iteration, coding, reasoning]
     provider: minimax
     model: minimax-m2.7
+    apiKey: "${MINIMAX_API_KEY}"
+    vision: true
+
+  - id: minimax-m3
+    name: "MiniMax M3"
+    type: llm
+    capabilities: [brainstorming, creative, design, writing, coding, reasoning, analysis]
+    provider: minimax
+    model: minimax-m3
     apiKey: "${MINIMAX_API_KEY}"
     vision: true
 
@@ -212,10 +222,10 @@ meetings:
 
   presets:
     debate:
-      agents: [deepseek, deepseek-reasoner, minimax-m2.7, qwen, kimi]
+      agents: [deepseek, deepseek-reasoner, minimax-m3, minimax-m2.7, qwen, kimi]
     thinkers:
-      agents: [deepseek, deepseek-reasoner, minimax-m2.7, qwen, kimi, deepseek-web]
+      agents: [deepseek, deepseek-reasoner, minimax-m3, minimax-m2.7, qwen, kimi, deepseek-web]
     builders:
       agents: [claude-code, hermes, codex, opencode]
     all:
-      agents: [chatgpt, claude-web, gemini-web, deepseek-web, claude-code, hermes, codex, opencode, deepseek, deepseek-reasoner, minimax-m2.7, qwen, kimi]
+      agents: [chatgpt, claude-web, gemini-web, deepseek-web, claude-code, hermes, codex, opencode, deepseek, deepseek-reasoner, minimax-m3, minimax-m2.7, qwen, kimi]

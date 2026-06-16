@@ -235,7 +235,7 @@ export class SubprocessAgent implements IAgent {
     const phase = prompt.phase;
     const phaseGuidance = phase === 'build'
       ? 'You are in a BUILD phase. Use your tools to read existing files, write code, run commands, and implement ONE piece of the project.'
-      : 'This is a DISCUSSION-ONLY phase. Do NOT attempt to read files, run commands, or write code. Provide your thoughts, reasoning, and opinions as text only. Do not use any tools.';
+      : 'You are in a DISCUSSION phase. You may use tools to read files, search the web, or gather information as needed to inform your response. However, do not write code or modify files — focus on analysis, reasoning, and discussion.';
 
     return [
       `You are "${this.name}" participating in a structured meeting.`,

@@ -77,7 +77,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderEntry> = {
     name: 'MiniMax',
     defaultModel: 'abab6.5s-chat',
     requiresApiKey: true,
-    createAdapter: (apiKey, model) => new MinimaxAdapter(apiKey, model),
+    createAdapter: (apiKey, model, _endpoint, vision) => new MinimaxAdapter(apiKey, model, vision),
   },
   qwen: {
     provider: 'qwen',

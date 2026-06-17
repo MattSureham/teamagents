@@ -95,6 +95,8 @@ export class MeetingEngine {
   private aborted = false;
   private totalTurns = 0;
   private totalRounds = 0;
+  private consecutiveFailures = new Map<string, number>();
+  private seenContextImages = new Set<string>();
   reasonEnded: 'completed' | 'cancelled' = 'completed';
   currentTurn: string | null = null;
   workDir: string | undefined;
@@ -520,6 +522,16 @@ export class MeetingEngine {
       const agent = this.agents.get(speaker.id);
       if (!agent) continue;
 
+      // Skip agents that have failed 2+ consecutive rounds
+      if ((this.consecutiveFailures.get(agent.id) ?? 0) >= 2) {
+        this.addMessage(
+          agent.id,
+          agent.name,
+          `[${agent.name} is being skipped after ${this.consecutiveFailures.get(agent.id)} consecutive failures]`
+        );
+        continue;
+      }
+
       let currentPrompt: string;
       if (phase === MeetingPhase.POSITION) {
         currentPrompt = this.moderator.buildPositionPrompt(this.topic, speaker.name);
@@ -566,6 +578,14 @@ export class MeetingEngine {
 
     for (const agent of this.agents.values()) {
       if (this.aborted) return;
+      if ((this.consecutiveFailures.get(agent.id) ?? 0) >= 2) {
+        this.addMessage(
+          agent.id,
+          agent.name,
+          `[${agent.name} is being skipped after ${this.consecutiveFailures.get(agent.id)} consecutive failures]`
+        );
+        continue;
+      }
       await this.promptAgent(agent, votePrompt);
     }
   }
@@ -704,7 +724,7 @@ export class MeetingEngine {
           topic: this.topic,
           background: this.context,
           contextImages:
-            agent.supportsVision && this.contextImages.length > 0
+            agent.supportsVision && this.contextImages.length > 0 && !this.seenContextImages.has(agent.id)
               ? this.contextImages
               : undefined,
           transcript: transcriptMessages,
@@ -724,15 +744,23 @@ export class MeetingEngine {
       // Clean up the meeting-level abort listener (turn is done)
       this.abortController.signal.removeEventListener('abort', onMeetingAbort);
 
+      // Mark that this agent has received context images (don't re-send)
+      if (agent.supportsVision && this.contextImages.length > 0) {
+        this.seenContextImages.add(agent.id);
+      }
+
+      this.consecutiveFailures.delete(agent.id);
       this.addMessage(agent.id, agent.name, response.content, Date.now() - started);
       await this.checkpoint();
     } catch (e) {
       console.error(`[engine] ${agent.name} failed:`, e instanceof Error ? e.message : e);
+      const reason = e instanceof Error ? e.message : String(e);
       this.addMessage(
         agent.id,
         agent.name,
-        `[${agent.name} encountered an error and could not respond]`
+        `[${agent.name} encountered an error: ${reason}]`
       );
+      this.consecutiveFailures.set(agent.id, (this.consecutiveFailures.get(agent.id) ?? 0) + 1);
     } finally {
       this.currentTurn = null;
       this.onTurnEnd?.(agent.name);

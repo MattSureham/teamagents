@@ -116,7 +116,7 @@ agents:
     provider: deepseek
     model: deepseek-reasoner
     apiKey: "${DEEPSEEK_API_KEY}"
-    vision: true
+    vision: false
 
   - id: deepseek-v4-pro
     name: "DeepSeek V4 Pro"
@@ -125,7 +125,7 @@ agents:
     provider: deepseek
     model: deepseek-v4-pro
     apiKey: "${DEEPSEEK_API_KEY}"
-    vision: true
+    vision: false
 
   - id: deepseek-v4-flash
     name: "DeepSeek V4 Flash"
@@ -134,7 +134,7 @@ agents:
     provider: deepseek
     model: deepseek-v4-flash
     apiKey: "${DEEPSEEK_API_KEY}"
-    vision: true
+    vision: false
 
   - id: minimax
     name: "MiniMax"

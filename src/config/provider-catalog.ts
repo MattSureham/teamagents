@@ -70,7 +70,7 @@ export const LLM_PROVIDERS: Record<string, LLMProviderEntry> = {
     name: 'DeepSeek',
     defaultModel: 'deepseek-chat',
     requiresApiKey: true,
-    createAdapter: (apiKey, model) => new DeepSeekAdapter(apiKey, model),
+    createAdapter: (apiKey, model, _endpoint, vision) => new DeepSeekAdapter(apiKey, model, vision),
   },
   minimax: {
     provider: 'minimax',

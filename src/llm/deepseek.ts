@@ -3,12 +3,15 @@ import { requestLLM } from './rate-limit.js';
 
 export class DeepSeekAdapter implements LLMAdapter {
   readonly provider = 'deepseek';
-  readonly supportsVision = true;
+  readonly supportsVision: boolean;
 
   constructor(
     private apiKey: string,
-    readonly model: string = 'deepseek-chat'
-  ) {}
+    readonly model: string = 'deepseek-chat',
+    supportsVision: boolean = true
+  ) {
+    this.supportsVision = supportsVision;
+  }
 
   async chat(messages: ChatMessage[]): Promise<string> {
     const response = await requestLLM(this.provider, () => fetch('https://api.deepseek.com/v1/chat/completions', {

@@ -70,6 +70,15 @@ const PHASE_ORDER_COLLAB: MeetingPhase[] = [
   MeetingPhase.REVIEW,
 ];
 
+// `toStoredMeeting` appends a human-readable "[N image(s) included in context]"
+// note to the persisted context. When that stored context is fed back in (e.g. a
+// UI restart reuses it), strip the note so it never accumulates across re-runs.
+const IMAGE_COUNT_ANNOTATION = /(\s*\[\d+ image\(s\) included in context\])+\s*$/;
+
+function stripImageCountAnnotation(context: string): string {
+  return context.replace(IMAGE_COUNT_ANNOTATION, '').trimEnd();
+}
+
 export class MeetingEngine {
   readonly id: string;
   readonly topic: string;
@@ -117,7 +126,7 @@ export class MeetingEngine {
   constructor(config: MeetingConfig) {
     this.id = config.resumeId ?? randomUUID();
     this.topic = config.topic;
-    this.context = config.context;
+    this.context = stripImageCountAnnotation(config.context);
     this.contextImages = config.initialContextImages ?? config.contextImages ?? [];
     this.moderatorId = config.moderatorId ?? '__system_moderator__';
     this.mode = config.mode ?? 'debate';

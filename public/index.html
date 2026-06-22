@@ -395,6 +395,7 @@ let agents = [];
 let meetingActive = false;
 let restartMode = false;
 let continueFromId = null;
+let continueContextImages = [];
 let speakerOrder = [];
 
 // ── Quick-Start Templates ──
@@ -725,6 +726,8 @@ function handleFileUpload() {
   if (!file) return;
   const isImage = /\.(png|jpe?g|gif|webp)$/i.test(file.name);
   const isDoc = /\.(pdf|docx)$/i.test(file.name);
+  // A fresh upload replaces any images carried over from a restarted meeting.
+  if (isImage || isDoc) continueContextImages = [];
   const label = isImage ? ' (image — analyzed by vision agents)' : isDoc ? ' (document — extracted server-side)' : '';
   $('#ctx-file-name').textContent = file.name + label;
   const reader = new FileReader();
@@ -774,6 +777,13 @@ async function startMeeting() {
 
   if (!topic || participantIds.length < 2) return;
 
+  // Re-attach images carried from a restarted meeting, unless the user pasted a
+  // fresh inline image (parsed server-side) or removed the image reference.
+  const hasInlineImage = /data:image\//.test(context);
+  const carryImages = (!hasInlineImage && /\[Image:/.test(context) && continueContextImages.length)
+    ? continueContextImages
+    : undefined;
+
   const btn = $('#btn-start');
   const isContinue = !!continueFromId;
   btn.classList.add('loading');
@@ -803,6 +813,7 @@ async function startMeeting() {
     body = JSON.stringify({
       topic, context, participantIds, moderatorId,
       speakerOrder: orderedSpeakerIds,
+      contextImages: carryImages,
       autoStart: false, mode, workDir,
       maxRebuttalRounds: rebuttalRounds,
       maxDeliberationRounds: deliberationRounds,
@@ -854,6 +865,7 @@ async function startMeeting() {
     showBanner('error', (isContinue ? 'Failed to resume: ' : 'Failed to start: ') + escapeHtml(e.message));
   } finally {
     continueFromId = null;
+    continueContextImages = [];
     btn.classList.remove('loading');
     btn.querySelector('.btn-label').textContent = 'Start Meeting';
     updateStartButton();
@@ -1473,6 +1485,9 @@ async function prepareContinue(id) {
     // Populate the form
     $('#topic').value = meeting.topic;
     $('#context').value = meeting.context || '';
+    // Carry the original image bytes forward — the stored context only keeps a
+    // text "[Image: ...]" placeholder, so a restart would otherwise lose vision.
+    continueContextImages = Array.isArray(meeting.contextImages) ? meeting.contextImages : [];
 
     // Set mode toggle
     $$('#mode-toggle button').forEach(function(b) {

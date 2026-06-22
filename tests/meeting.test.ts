@@ -260,6 +260,37 @@ describe('MeetingEngine', () => {
     expect(deliberationMessages.map((m) => m.authorId)).toEqual(['vision', 'text']);
   });
 
+  it('does not accumulate the image-count annotation when stored context is reused', () => {
+    const agents = [
+      new MockAgent('a1', 'Alice', ['general']),
+      new MockAgent('a2', 'Bob', ['general']),
+    ];
+    const image = { data: 'data:image/png;base64,abc', mimeType: 'image/png' };
+
+    const first = new MeetingEngine({
+      topic: 'Analyze image',
+      context: 'Look at this screenshot:\n\n[Image: image/png]',
+      contextImages: [image],
+      participants: agents,
+      mode: 'discussion',
+    });
+    const stored = first.toStoredMeeting();
+    expect(stored.context).toContain('[1 image(s) included in context]');
+
+    // Simulate a UI restart feeding the stored context back in as new context.
+    const second = new MeetingEngine({
+      topic: 'Analyze image',
+      context: stored.context,
+      contextImages: [image],
+      participants: agents,
+      mode: 'discussion',
+    });
+    expect(second.context).toBe('Look at this screenshot:\n\n[Image: image/png]');
+    const annotations =
+      second.toStoredMeeting().context.match(/image\(s\) included in context/g) ?? [];
+    expect(annotations).toHaveLength(1);
+  });
+
   it('runs build rounds as builder round-robin rounds', async () => {
     class BuilderAgent extends MockAgent {
       override readonly type = 'subprocess';

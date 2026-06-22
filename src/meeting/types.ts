@@ -73,6 +73,7 @@ export interface StoredMeetingConfig {
   maxTotalRounds?: number;
   mode: string;
   workDir?: string;
+  speakerOrder?: string[];
 }
 
 export interface StoredMeeting {

@@ -202,6 +202,64 @@ describe('MeetingEngine', () => {
     expect(engine.summary?.voteTally).toBeUndefined();
   });
 
+  it('uses configured speaker order for each round', async () => {
+    const agents = [
+      new MockAgent('a1', 'Alice', ['general']),
+      new MockAgent('a2', 'Bob', ['general']),
+      new MockAgent('a3', 'Carol', ['general']),
+    ];
+
+    const engine = new MeetingEngine({
+      topic: 'Ordered discussion',
+      context: '',
+      participants: agents,
+      mode: 'discussion',
+      speakerOrder: ['a3', 'a1'],
+      maxDeliberationRounds: 1,
+    });
+
+    await engine.start();
+
+    const deliberationMessages = engine.transcript.filter(
+      (m) => m.phase === 'deliberation' && m.authorId !== '__system_moderator__'
+    );
+    expect(deliberationMessages.map((m) => m.authorId)).toEqual(['a3', 'a1', 'a2']);
+    expect(engine.toStoredMeeting().config?.speakerOrder).toEqual(['a3', 'a1', 'a2']);
+  });
+
+  it('asks the first vision speaker to share image observations', async () => {
+    class CapturingVisionAgent extends MockAgent {
+      readonly supportsVision = true;
+      prompts: MeetingPrompt[] = [];
+
+      override async respond(prompt: MeetingPrompt): Promise<AgentResponse> {
+        this.prompts.push(prompt);
+        return { content: 'Image shows a dashboard with a chart.' };
+      }
+    }
+
+    const vision = new CapturingVisionAgent('vision', 'Vision', ['analysis']);
+    const text = new MockAgent('text', 'Text', ['general']);
+    const engine = new MeetingEngine({
+      topic: 'Analyze image',
+      context: '',
+      contextImages: [{ data: 'data:image/png;base64,abc', mimeType: 'image/png' }],
+      participants: [text, vision],
+      mode: 'discussion',
+      speakerOrder: ['vision', 'text'],
+      maxDeliberationRounds: 1,
+    });
+
+    await engine.start();
+
+    expect(vision.prompts[0].contextImages).toHaveLength(1);
+    expect(vision.prompts[0].currentPrompt).toContain('participants without vision');
+    const deliberationMessages = engine.transcript.filter(
+      (m) => m.phase === 'deliberation' && m.authorId !== '__system_moderator__'
+    );
+    expect(deliberationMessages.map((m) => m.authorId)).toEqual(['vision', 'text']);
+  });
+
   it('runs build rounds as builder round-robin rounds', async () => {
     class BuilderAgent extends MockAgent {
       override readonly type = 'subprocess';

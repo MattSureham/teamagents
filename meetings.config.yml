@@ -238,6 +238,8 @@ meetings:
   maxBuildRounds: 3
   maxReviewRounds: 1
   maxTotalRounds: 50
+  # Optional: force certain agents to speak first, e.g. [minimax-m3, deepseek]
+  # speakerOrder: []
   defaultModerator: deepseek
 
   presets:

@@ -16,6 +16,7 @@ export function resumeCommand(): Command {
     .option('-s, --server <url>', 'Delegate to a running server')
     .option('--context <string>', 'Override or add context for the continuation')
     .option('--moderator <id>', 'Override the moderator agent')
+    .option('--speaker-order <ids>', 'Comma-separated agent IDs to speak first/in order')
     .option('--rebuttal-rounds <n>', 'Override max rebuttal rounds')
     .option('--deliberation-rounds <n>', 'Override max deliberation rounds')
     .option('--plan-rounds <n>', 'Override max plan rounds')
@@ -29,6 +30,10 @@ export function resumeCommand(): Command {
         try {
           const res = await fetch(`${options.server}/meetings/${meetingId}/resume`, {
             method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              speakerOrder: parseIds(options.speakerOrder),
+            }),
           });
           const body = (await res.json()) as Record<string, unknown>;
           if (res.ok) {
@@ -146,6 +151,7 @@ export function resumeCommand(): Command {
         checkpointStore: store,
         context: options.context ?? undefined,
         moderatorId: options.moderator ?? undefined,
+        speakerOrder: parseIds(options.speakerOrder),
         maxRebuttalRounds: options.rebuttalRounds ? parseInt(options.rebuttalRounds, 10) : undefined,
         maxDeliberationRounds: options.deliberationRounds ? parseInt(options.deliberationRounds, 10) : undefined,
         maxPlanRounds: options.planRounds ? parseInt(options.planRounds, 10) : undefined,
@@ -287,4 +293,9 @@ export function resumeCommand(): Command {
 
 function padRight(s: string, len: number): string {
   return s.length > len ? s.slice(0, len - 1) + '…' : s.padEnd(len);
+}
+
+function parseIds(value?: string): string[] | undefined {
+  const ids = value?.split(',').map((id) => id.trim()).filter(Boolean);
+  return ids && ids.length > 0 ? ids : undefined;
 }

@@ -38,6 +38,7 @@ interface CreateMeetingBody {
   moderatorId?: string;
   autoStart?: boolean;
   mode?: MeetingMode;
+  speakerOrder?: string[];
   workDir?: string;
   worktree?: boolean;
   maxPlanRounds?: number;
@@ -175,6 +176,7 @@ export function createRouter(
             name: a.name,
             capabilities: a.capabilities,
             type: a.type,
+            supportsVision: a.supportsVision ?? false,
           }))
         );
       }
@@ -249,6 +251,7 @@ export function createRouter(
           participants,
           moderatorId,
           mode: body.mode ?? config.meetings.mode,
+          speakerOrder: body.speakerOrder ?? config.meetings.speakerOrder,
           workDir: body.workDir,
           turnTimeoutMs: body.turnTimeoutMs ?? config.meetings.turnTimeoutMs,
           maxRebuttalRounds: body.maxRebuttalRounds ?? config.meetings.maxRebuttalRounds,
@@ -383,6 +386,7 @@ export function createRouter(
           participants,
           moderatorId: stored.moderatorId,
           mode: (stored.mode ?? config.meetings.mode) as MeetingMode,
+          speakerOrder: stored.config?.speakerOrder ?? config.meetings.speakerOrder,
           workDir: stored.config?.workDir,
           turnTimeoutMs: stored.config?.turnTimeoutMs ?? config.meetings.turnTimeoutMs,
           maxRebuttalRounds: stored.config?.maxRebuttalRounds ?? config.meetings.maxRebuttalRounds,
@@ -422,6 +426,7 @@ export function createRouter(
           participantIds?: string[];
           moderatorId?: string;
           mode?: MeetingMode;
+          speakerOrder?: string[];
           maxPlanRounds?: number;
           maxBuildRounds?: number;
           maxReviewRounds?: number;
@@ -487,6 +492,7 @@ export function createRouter(
           context: body.context ?? undefined,
           moderatorId: body.moderatorId ?? undefined,
           mode: body.mode ?? undefined,
+          speakerOrder: body.speakerOrder ?? undefined,
           turnTimeoutMs: body.turnTimeoutMs ?? undefined,
           maxRebuttalRounds: body.maxRebuttalRounds ?? undefined,
           maxDeliberationRounds: body.maxDeliberationRounds ?? undefined,

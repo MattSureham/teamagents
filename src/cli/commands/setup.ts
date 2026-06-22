@@ -92,6 +92,8 @@ meetings:
   turnTimeoutMs: 60000
   maxRebuttalRounds: 2
   maxDeliberationRounds: 3
+  # Optional: force certain agents to speak first, e.g. [chatgpt, deepseek]
+  # speakerOrder: []
 `;
 
   if (foundKeys.includes('deepseek')) {

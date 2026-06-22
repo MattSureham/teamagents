@@ -768,6 +768,7 @@ LLM-specific fields:
 | `maxBuildRounds` | number | 3 | Collaboration only — build iteration rounds |
 | `maxReviewRounds` | number | 1 | Collaboration only — review iteration rounds |
 | `maxTotalRounds` | number | 50 | Max discussion/build rounds before moving to summary |
+| `speakerOrder` | string[] | selected agent order | Optional speaking order. Listed agent IDs speak first; unlisted selected agents are appended. Useful for putting a vision agent first so it can describe images for everyone. |
 | `defaultModerator` | string | — | Agent ID to use as moderator if none specified in the meeting |
 | `worktree.enabled` | boolean | false | Always isolate in git worktrees |
 | `worktree.baseRef` | string | HEAD | Git ref to branch worktrees from |
@@ -788,6 +789,7 @@ agent-meetings run -t <topic> -a <agent-ids> [options]
   -x, --context <text>         Background context (text or path to a file)
   -c, --config <path>          Path to config file (default: ./meetings.config.yml)
   --mode <mode>                Meeting mode: debate (default), discussion, or collaboration
+  --speaker-order <ids>        Comma-separated agent IDs to speak first/in order
   --work-dir <path>            Shared working directory for agents to build in (collaboration mode)
   --worktree                   Create an isolated git worktree as the working directory
   --turn-timeout <ms>          Turn timeout in ms (default: 60000)

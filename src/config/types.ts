@@ -61,6 +61,7 @@ export interface MeetingsConfig {
   maxBuildRounds: number;
   maxReviewRounds: number;
   maxTotalRounds: number;
+  speakerOrder?: string[];
   defaultModerator: string;
   presets?: Record<string, { agents: string[]; moderator?: string }>;
   worktree?: {

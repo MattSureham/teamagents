@@ -52,6 +52,13 @@
   .agent-chip .dot.subprocess { background: #34d399; }
   .agent-chip .dot.protocol { background: #fbbf24; }
   .agent-chip .tag { font-size: 10px; padding: 1px 5px; border-radius: 8px; background: #252830; color: #6b7280; text-transform: uppercase; }
+  .speaker-order { display: flex; flex-direction: column; gap: 5px; max-height: 150px; overflow-y: auto; }
+  .speaker-order-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid #2d3039; border-radius: 6px; background: #1c1e26; font-size: 13px; }
+  .speaker-order-row .order-index { width: 20px; color: #7eb6ff; font-variant-numeric: tabular-nums; }
+  .speaker-order-row .order-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .speaker-order-row .order-vision { color: #8bd3ff; font-size: 11px; border: 1px solid #255b75; border-radius: 8px; padding: 1px 5px; }
+  .speaker-order-row button { width: 24px; height: 24px; border: 1px solid #2d3039; border-radius: 4px; background: #151820; color: #a1a5b0; cursor: pointer; }
+  .speaker-order-row button:disabled { opacity: 0.35; cursor: default; }
 
   .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .settings-grid label { margin-bottom: 3px; font-size: 12px; }
@@ -276,6 +283,10 @@
       <div class="agent-grid" id="agent-list">
         <span style="color:#6b7280;font-size:13px;padding:6px">Loading agents...</span>
       </div>
+      <div id="speaker-order-wrap" style="display:none;margin-top:10px">
+        <label>Speaking Order <span style="color:#6b7280;font-weight:400">(first speaker shares context first)</span></label>
+        <div class="speaker-order" id="speaker-order-list"></div>
+      </div>
       <noscript><div style="background:#5c2020;color:#fca5a5;padding:12px;border-radius:6px;margin-top:8px;font-size:13px"><strong>JavaScript is disabled.</strong> This app requires JavaScript.</div></noscript>
     </div>
 
@@ -384,6 +395,7 @@ let agents = [];
 let meetingActive = false;
 let restartMode = false;
 let continueFromId = null;
+let speakerOrder = [];
 
 // ── Quick-Start Templates ──
 const TEMPLATES = [
@@ -475,6 +487,8 @@ function applyTemplate(templateId) {
   $$('.agent-chip').forEach(function(c) {
     c.classList.toggle('selected', selected.indexOf(c.dataset.id) >= 0);
   });
+  speakerOrder = selected.slice();
+  renderSpeakerOrder();
 
   // Moderator
   const modAgent = matchAgent(tmpl.moderatorPreference, new Set())
@@ -605,19 +619,68 @@ function renderAgentChips() {
     <div class="agent-chip" data-id="${a.id}" onclick="toggleAgent(this)">
       <span class="dot ${a.type}"></span>
       ${a.name}
+      ${a.supportsVision ? '<span class="tag">vision</span>' : ''}
       <span class="tag">${a.type}</span>
     </div>
   `).join('');
+  renderSpeakerOrder();
 }
 
 function toggleAgent(chip) {
   if (meetingActive) return;
   chip.classList.toggle('selected');
+  const id = chip.dataset.id;
+  if (chip.classList.contains('selected')) {
+    if (!speakerOrder.includes(id)) speakerOrder.push(id);
+  } else {
+    speakerOrder = speakerOrder.filter(agentId => agentId !== id);
+  }
+  renderSpeakerOrder();
   updateStartButton();
 }
 
 function getSelectedAgents() {
   return [...$$('.agent-chip.selected')].map(c => c.dataset.id);
+}
+
+function getSpeakerOrder() {
+  const selected = new Set(getSelectedAgents());
+  return speakerOrder.filter(id => selected.has(id));
+}
+
+function renderSpeakerOrder() {
+  const selectedOrder = getSpeakerOrder();
+  const wrap = $('#speaker-order-wrap');
+  const list = $('#speaker-order-list');
+  if (!wrap || !list) return;
+  wrap.style.display = selectedOrder.length > 0 ? 'block' : 'none';
+  list.innerHTML = selectedOrder.map((id, index) => {
+    const agent = agents.find(a => a.id === id);
+    if (!agent) return '';
+    return `
+      <div class="speaker-order-row" data-id="${escapeAttr(id)}">
+        <span class="order-index">${index + 1}</span>
+        <span class="order-name">${escapeHtml(agent.name)} <span style="color:#6b7280">(${escapeHtml(agent.id)})</span></span>
+        ${agent.supportsVision ? '<span class="order-vision">vision</span>' : ''}
+        <button type="button" title="Move earlier" onclick="moveSpeaker(this.closest('.speaker-order-row').dataset.id, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" title="Move later" onclick="moveSpeaker(this.closest('.speaker-order-row').dataset.id, 1)" ${index === selectedOrder.length - 1 ? 'disabled' : ''}>↓</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function moveSpeaker(id, delta) {
+  if (meetingActive) return;
+  const selectedOrder = getSpeakerOrder();
+  const from = selectedOrder.indexOf(id);
+  const to = from + delta;
+  if (from < 0 || to < 0 || to >= selectedOrder.length) return;
+  selectedOrder.splice(from, 1);
+  selectedOrder.splice(to, 0, id);
+  const selected = new Set(selectedOrder);
+  const unselected = speakerOrder.filter(agentId => !selected.has(agentId));
+  speakerOrder = selectedOrder.concat(unselected);
+  renderSpeakerOrder();
 }
 
 function selectPreset(kind) {
@@ -637,6 +700,8 @@ function selectPreset(kind) {
       c.classList.remove('selected');
     }
   });
+  speakerOrder = getSelectedAgents();
+  renderSpeakerOrder();
   updateStartButton();
 }
 
@@ -694,6 +759,7 @@ async function startMeeting() {
   const topic = $('#topic').value.trim();
   const context = $('#context').value.trim();
   const participantIds = getSelectedAgents();
+  const orderedSpeakerIds = getSpeakerOrder();
   const moderatorId = $('#moderator').value;
   const mode = getMode();
   const workDir = $('#workdir').value.trim() || undefined;
@@ -721,6 +787,7 @@ async function startMeeting() {
       workDir: workDir || undefined,
       context: context || undefined,
       participantIds: participantIds,
+      speakerOrder: orderedSpeakerIds,
       moderatorId: moderatorId,
       mode: mode,
       maxRebuttalRounds: rebuttalRounds,
@@ -735,6 +802,7 @@ async function startMeeting() {
   } else {
     body = JSON.stringify({
       topic, context, participantIds, moderatorId,
+      speakerOrder: orderedSpeakerIds,
       autoStart: false, mode, workDir,
       maxRebuttalRounds: rebuttalRounds,
       maxDeliberationRounds: deliberationRounds,
@@ -1434,6 +1502,10 @@ async function prepareContinue(id) {
     $$('.agent-chip').forEach(function(c) {
       c.classList.toggle('selected', ids.indexOf(c.dataset.id) >= 0);
     });
+    speakerOrder = (meeting.config && meeting.config.speakerOrder && meeting.config.speakerOrder.length)
+      ? meeting.config.speakerOrder.slice()
+      : ids.slice();
+    renderSpeakerOrder();
 
     // Set continue/restart mode
     var isRestart = restartMode;

@@ -30,6 +30,7 @@ export function runCommand(): Command {
     .option('--review-rounds <n>', 'Max review rounds (collaboration)', '1')
     .option('--total-rounds <n>', 'Max total rounds before summary', '50')
     .option('--mode <mode>', 'Meeting mode: debate, discussion, or collaboration', 'debate')
+    .option('--speaker-order <ids>', 'Comma-separated agent IDs to speak first/in order')
     .option('--work-dir <path>', 'Shared working directory for agents to build in (collaboration mode)')
     .option('--worktree', 'Create an isolated git worktree as the working directory (collaboration mode)')
     .option('--no-stream', 'Do not stream transcript; only show summary at the end')
@@ -146,6 +147,7 @@ export function runCommand(): Command {
         participants,
         moderatorId,
         mode,
+        speakerOrder: parseIds(options.speakerOrder),
         workDir: options.workDir,
         turnTimeoutMs: parseInt(options.turnTimeout, 10),
         maxRebuttalRounds: parseInt(options.rebuttalRounds, 10),
@@ -322,4 +324,9 @@ export function runCommand(): Command {
 
 function padRight(s: string, len: number): string {
   return s.length > len ? s.slice(0, len - 1) + '…' : s.padEnd(len);
+}
+
+function parseIds(value?: string): string[] | undefined {
+  const ids = value?.split(',').map((id) => id.trim()).filter(Boolean);
+  return ids && ids.length > 0 ? ids : undefined;
 }

@@ -24,6 +24,7 @@ export interface MeetingConfig {
   participants: IAgent[];
   moderatorId?: string;
   mode?: MeetingMode;
+  speakerOrder?: string[];
   workDir?: string;
   turnTimeoutMs?: number;
   maxRebuttalRounds?: number;
@@ -77,6 +78,7 @@ export class MeetingEngine {
   readonly participantIds: string[];
   readonly moderatorId: string;
   readonly mode: MeetingMode;
+  readonly speakerOrder: string[];
 
   status: MeetingStatus = 'pending';
   currentPhase: MeetingPhase = MeetingPhase.OPENING;
@@ -119,6 +121,7 @@ export class MeetingEngine {
     this.contextImages = config.initialContextImages ?? config.contextImages ?? [];
     this.moderatorId = config.moderatorId ?? '__system_moderator__';
     this.mode = config.mode ?? 'debate';
+    this.speakerOrder = this.normalizeSpeakerOrder(config.participants, config.speakerOrder);
     this.turnTimeoutMs = config.turnTimeoutMs ?? 60_000;
     this.maxRebuttalRounds = config.maxRebuttalRounds ?? 1;
     this.maxDeliberationRounds = config.maxDeliberationRounds ?? 3;
@@ -184,6 +187,7 @@ export class MeetingEngine {
       context?: string;
       moderatorId?: string;
       mode?: MeetingMode;
+      speakerOrder?: string[];
       maxRebuttalRounds?: number;
       maxDeliberationRounds?: number;
       maxPlanRounds?: number;
@@ -201,6 +205,7 @@ export class MeetingEngine {
       participants,
       moderatorId: options.moderatorId ?? stored.moderatorId,
       mode: (options.mode ?? storedConfig?.mode ?? stored.mode) as MeetingMode,
+      speakerOrder: options.speakerOrder ?? storedConfig?.speakerOrder,
       workDir: options.workDir ?? storedConfig?.workDir ?? undefined,
       turnTimeoutMs: options.turnTimeoutMs ?? storedConfig?.turnTimeoutMs,
       maxRebuttalRounds: options.maxRebuttalRounds ?? storedConfig?.maxRebuttalRounds,
@@ -483,6 +488,7 @@ export class MeetingEngine {
         maxTotalRounds: this.maxTotalRounds,
         mode: this.mode,
         workDir: this.workDir,
+        speakerOrder: this.speakerOrder,
       },
       turnManagerState: this.turnManager.toJSON(),
       resumePoint: { ...this.resumePoint },
@@ -519,13 +525,28 @@ export class MeetingEngine {
     const openingText = this.moderator.buildOpeningPrompt(
       this.topic,
       context,
-      [...this.agents.values()]
+      this.orderedAgents()
     );
     this.addMessage(this.moderator.systemModeratorId, this.moderator.systemModeratorName, openingText);
   }
 
+  private normalizeSpeakerOrder(agents: IAgent[], speakerOrder?: string[]): string[] {
+    const available = new Set(agents.map((a) => a.id));
+    const ordered = (speakerOrder ?? []).filter((id, index, arr) =>
+      available.has(id) && arr.indexOf(id) === index
+    );
+    const remaining = agents.map((a) => a.id).filter((id) => !ordered.includes(id));
+    return [...ordered, ...remaining];
+  }
+
+  private orderedAgents(): IAgent[] {
+    return this.speakerOrder
+      .map((id) => this.agents.get(id))
+      .filter((agent): agent is IAgent => agent != null);
+  }
+
   private async runRoundRobin(phase: MeetingPhase): Promise<boolean> {
-    let participants = [...this.agents.values()];
+    let participants = this.orderedAgents();
 
     if (phase === MeetingPhase.BUILD) {
       participants = participants.filter((a) => a.type === 'subprocess');
@@ -744,19 +765,28 @@ export class MeetingEngine {
       const onMeetingAbort = () => turnController.abort();
       this.abortController.signal.addEventListener('abort', onMeetingAbort, { once: true });
 
+      const contextImages =
+        agent.supportsVision && this.contextImages.length > 0 && !this.seenContextImages.has(agent.id)
+          ? this.contextImages
+          : undefined;
+      const currentPrompt = contextImages
+        ? [
+            promptText,
+            '',
+            'You are receiving image context for this meeting. Start by describing the visually relevant contents, labels, layout, and any uncertainty so participants without vision can rely on your observations.',
+          ].join('\n')
+        : promptText;
+
       const response = await Promise.race([
         agent.respond({
           meetingId: this.id,
           phase: this.currentPhase,
           topic: this.topic,
           background: this.context,
-          contextImages:
-            agent.supportsVision && this.contextImages.length > 0 && !this.seenContextImages.has(agent.id)
-              ? this.contextImages
-              : undefined,
+          contextImages,
           transcript: transcriptMessages,
-          speakingOrder: this.participantIds,
-          currentPrompt: promptText,
+          speakingOrder: this.speakerOrder,
+          currentPrompt,
           workDir: this.workDir,
           signal: turnController.signal,
         }),

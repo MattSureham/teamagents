@@ -5,6 +5,7 @@ import { join, extname, resolve, sep } from 'node:path';
 import type { AgentRegistry } from './agent-registry.js';
 import type { DataStore } from '../persistence/types.js';
 import { MeetingEngine } from '../meeting/engine.js';
+import type { MeetingMode } from '../meeting/types.js';
 import { formatLog } from '../meeting/format-log.js';
 import type { Config } from '../config/types.js';
 import type { IAgent } from '../agent/types.js';
@@ -36,7 +37,7 @@ interface CreateMeetingBody {
   participantIds: string[];
   moderatorId?: string;
   autoStart?: boolean;
-  mode?: 'debate' | 'collaboration';
+  mode?: MeetingMode;
   workDir?: string;
   worktree?: boolean;
   maxPlanRounds?: number;
@@ -381,7 +382,7 @@ export function createRouter(
           contextImages: stored.contextImages,
           participants,
           moderatorId: stored.moderatorId,
-          mode: (stored.mode ?? config.meetings.mode) as 'debate' | 'collaboration',
+          mode: (stored.mode ?? config.meetings.mode) as MeetingMode,
           workDir: stored.config?.workDir,
           turnTimeoutMs: stored.config?.turnTimeoutMs ?? config.meetings.turnTimeoutMs,
           maxRebuttalRounds: stored.config?.maxRebuttalRounds ?? config.meetings.maxRebuttalRounds,
@@ -420,7 +421,7 @@ export function createRouter(
           context?: string;
           participantIds?: string[];
           moderatorId?: string;
-          mode?: 'debate' | 'collaboration';
+          mode?: MeetingMode;
           maxPlanRounds?: number;
           maxBuildRounds?: number;
           maxReviewRounds?: number;

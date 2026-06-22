@@ -26,6 +26,7 @@ export {
 export {
   MeetingPhase,
   DebatePhase,
+  type MeetingMode,
   type MeetingStatus,
   type Message,
   type MeetingSummary,

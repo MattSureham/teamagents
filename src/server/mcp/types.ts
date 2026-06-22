@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const meetingModeSchema = z.enum(['debate', 'collaboration']);
+export const meetingModeSchema = z.enum(['debate', 'discussion', 'collaboration']);
 export const meetingStatusSchema = z.enum(['active', 'concluded', 'pending', 'cancelled']);
 
 export const createMeetingSchema = z.object({
@@ -8,7 +8,7 @@ export const createMeetingSchema = z.object({
   context: z.string().optional().describe('Additional context or background information'),
   participantIds: z.array(z.string()).min(2).describe('Agent IDs to participate (minimum 2)'),
   moderatorId: z.string().optional().describe('Agent ID to use as moderator'),
-  mode: meetingModeSchema.optional().describe('Meeting mode: debate or collaboration'),
+  mode: meetingModeSchema.optional().describe('Meeting mode: debate, discussion, or collaboration'),
   workDir: z.string().optional().describe('Working directory for collaboration meetings'),
   autoStart: z.boolean().optional().describe('Whether to auto-start the meeting (default true)'),
   turnTimeoutMs: z.number().int().min(1000).optional(),
@@ -38,6 +38,7 @@ export const resumeMeetingSchema = z.object({
   participantIds: z.array(z.string()).optional().describe('Override participant agent IDs'),
   workDir: z.string().optional().describe('Override working directory'),
   context: z.string().optional().describe('Additional context for the continuation'),
+  mode: meetingModeSchema.optional().describe('Override meeting mode'),
   turnTimeoutMs: z.number().int().min(1000).optional(),
   maxRebuttalRounds: z.number().int().min(0).max(20).optional(),
   maxDeliberationRounds: z.number().int().min(0).max(20).optional(),

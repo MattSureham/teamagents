@@ -1,3 +1,5 @@
+import type { MeetingMode } from '../meeting/types.js';
+
 export interface ServerConfig {
   port: number;
   host: string;
@@ -51,7 +53,7 @@ export interface ProtocolAgentDef {
 export type AgentDef = SubprocessAgentDef | LLMAgentDef | BrowserAgentDef | ProtocolAgentDef;
 
 export interface MeetingsConfig {
-  mode: 'debate' | 'collaboration';
+  mode: MeetingMode;
   turnTimeoutMs: number;
   maxRebuttalRounds: number;
   maxDeliberationRounds: number;

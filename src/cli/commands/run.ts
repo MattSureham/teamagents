@@ -9,6 +9,9 @@ import { formatLog } from '../../meeting/format-log.js';
 import type { IAgent } from '../../agent/types.js';
 import { loadContext } from '../../utils/context-loader.js';
 import { WorktreeManager } from '../../worktree/manager.js';
+import type { MeetingMode } from '../../meeting/types.js';
+
+const MEETING_MODES: MeetingMode[] = ['debate', 'discussion', 'collaboration'];
 
 export function runCommand(): Command {
   return new Command('run')
@@ -26,7 +29,7 @@ export function runCommand(): Command {
     .option('--build-rounds <n>', 'Max build rounds (collaboration)', '3')
     .option('--review-rounds <n>', 'Max review rounds (collaboration)', '1')
     .option('--total-rounds <n>', 'Max total rounds before summary', '50')
-    .option('--mode <mode>', 'Meeting mode: debate or collaboration', 'debate')
+    .option('--mode <mode>', 'Meeting mode: debate, discussion, or collaboration', 'debate')
     .option('--work-dir <path>', 'Shared working directory for agents to build in (collaboration mode)')
     .option('--worktree', 'Create an isolated git worktree as the working directory (collaboration mode)')
     .option('--no-stream', 'Do not stream transcript; only show summary at the end')
@@ -129,7 +132,12 @@ export function runCommand(): Command {
       const store = new JsonFileStore(config.server.dataDir);
       await store.init();
 
-      const mode = (options.mode as string) ?? config.meetings.mode ?? 'debate';
+      const mode = ((options.mode as string) ?? config.meetings.mode ?? 'debate') as MeetingMode;
+      if (!MEETING_MODES.includes(mode)) {
+        console.error(`Invalid mode "${mode}". Expected one of: ${MEETING_MODES.join(', ')}`);
+        await registry.shutdown();
+        process.exit(1);
+      }
 
       const engine = new MeetingEngine({
         topic: options.topic,
@@ -137,7 +145,7 @@ export function runCommand(): Command {
         contextImages: contextImages.length > 0 ? contextImages : undefined,
         participants,
         moderatorId,
-        mode: mode as 'debate' | 'collaboration',
+        mode,
         workDir: options.workDir,
         turnTimeoutMs: parseInt(options.turnTimeout, 10),
         maxRebuttalRounds: parseInt(options.rebuttalRounds, 10),

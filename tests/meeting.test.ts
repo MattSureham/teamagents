@@ -170,6 +170,38 @@ describe('MeetingEngine', () => {
     expect(deliberationMessages).toHaveLength(6);
   });
 
+  it('runs discussion mode without position, rebuttal, or voting phases', async () => {
+    const agents = [
+      new MockAgent('a1', 'Alice', ['general']),
+      new MockAgent('a2', 'Bob', ['general']),
+    ];
+
+    const engine = new MeetingEngine({
+      topic: 'Open discussion',
+      context: '',
+      participants: agents,
+      mode: 'discussion',
+      maxRebuttalRounds: 2,
+      maxDeliberationRounds: 2,
+    });
+
+    await engine.start();
+
+    const phases = engine.transcript.map((m) => m.phase);
+    expect(phases).toContain('opening');
+    expect(phases).toContain('deliberation');
+    expect(phases).toContain('summary');
+    expect(phases).not.toContain('position');
+    expect(phases).not.toContain('rebuttal');
+    expect(phases).not.toContain('voting');
+
+    const deliberationMessages = engine.transcript.filter(
+      (m) => m.phase === 'deliberation' && m.authorId !== '__system_moderator__'
+    );
+    expect(deliberationMessages).toHaveLength(4);
+    expect(engine.summary?.voteTally).toBeUndefined();
+  });
+
   it('runs build rounds as builder round-robin rounds', async () => {
     class BuilderAgent extends MockAgent {
       override readonly type = 'subprocess';

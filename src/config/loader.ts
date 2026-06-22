@@ -193,9 +193,9 @@ function validateConfig(config: Config): void {
 
   if (
     config.meetings.mode &&
-    !['debate', 'collaboration'].includes(config.meetings.mode)
+    !['debate', 'discussion', 'collaboration'].includes(config.meetings.mode)
   ) {
-    throw new Error(`meetings.mode must be "debate" or "collaboration"`);
+    throw new Error(`meetings.mode must be "debate", "discussion", or "collaboration"`);
   }
 
   // Apply defaults

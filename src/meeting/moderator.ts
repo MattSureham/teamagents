@@ -1,13 +1,13 @@
 import type { IAgent } from '../agent/types.js';
 import type { LLMAdapter } from '../llm/types.js';
-import { MeetingPhase } from './types.js';
+import { MeetingPhase, type MeetingMode } from './types.js';
 
 export class Moderator {
   private adapter: LLMAdapter | null;
-  private mode: 'debate' | 'collaboration';
+  private mode: MeetingMode;
   private workDir: string | null;
 
-  constructor(adapter: LLMAdapter | null = null, mode: 'debate' | 'collaboration' = 'debate', workDir: string | null = null) {
+  constructor(adapter: LLMAdapter | null = null, mode: MeetingMode = 'debate', workDir: string | null = null) {
     this.adapter = adapter;
     this.mode = mode;
     this.workDir = workDir;
@@ -48,6 +48,27 @@ export class Moderator {
       ].join('\n');
     }
 
+    if (this.mode === 'discussion') {
+      return [
+        '========================================',
+        `DISCUSSION TOPIC: ${topic}`,
+        '========================================',
+        context ? `\nBACKGROUND CONTEXT:\n${context}\n` : '',
+        'PARTICIPANTS:',
+        participantList,
+        '',
+        'GROUND RULES:',
+        '1. This is an open discussion, not a debate.',
+        '2. Participants may agree, disagree, ask clarifying questions, build on each other, or reframe the topic.',
+        '3. Do not invent objections just because it is your turn.',
+        '4. If the group is converging, help sharpen the shared conclusion and next steps.',
+        '5. The meeting concludes with a structured summary.',
+        '',
+        'We now begin with open discussion.',
+        `Each participant, please contribute naturally on: "${topic}"`,
+      ].join('\n');
+    }
+
     return [
       '========================================',
       `MEETING TOPIC: ${topic}`,
@@ -73,11 +94,11 @@ export class Moderator {
   }
 
   buildRebuttalPrompt(topic: string, agentName: string): string {
-    return `You have heard the positions stated so far. Please offer your rebuttal — respond to specific points made by other participants and defend your own position. Only rebut points you actually disagree with. Do not re-state or summarize positions you agree with — skip them and focus on genuine disagreements. Topic: "${topic}"`;
+    return `You have heard the positions stated so far. This is a response round, not a requirement to disagree. Respond to specific points made by other participants: challenge claims you genuinely disagree with, clarify trade-offs, or acknowledge agreement and add useful nuance. Do not invent objections. Topic: "${topic}"`;
   }
 
   buildDeliberationPrompt(topic: string, agentName: string): string {
-    return `The floor is open for deliberation on "${topic}". Only contribute if you have a genuinely new perspective or argument not already covered by others. Do not repeat, rephrase, or echo what has already been said — that wastes everyone's time. If you have nothing new to add, say "I have nothing new to add" and pass.`;
+    return `The floor is open for discussion on "${topic}". Speak naturally: build on useful ideas, ask questions, resolve disagreements, surface trade-offs, or synthesize where the group is converging. You may agree with others when that is the honest and useful contribution. If you have nothing meaningful to add, say so briefly and pass.`;
   }
 
   buildVotingPrompt(topic: string, question: string): string {
@@ -180,7 +201,16 @@ export class Moderator {
       return summary;
     }
 
-    const systemPrompt = `You are a meeting moderator synthesizing the results of a structured debate.
+    const systemPrompt = this.mode === 'discussion'
+      ? `You are a meeting moderator synthesizing the results of an open discussion.
+Produce a meeting summary with these sections:
+1. CONSENSUS: What the group converged on, if anything
+2. KEY POINTS: The main ideas, trade-offs, and questions discussed
+3. OPEN QUESTIONS: What remains unresolved
+4. ACTION ITEMS: Follow-up tasks
+
+Format each section clearly. Be concise.`
+      : `You are a meeting moderator synthesizing the results of a structured debate.
 Produce a meeting summary with these sections:
 1. CONSENSUS: What was agreed upon?
 2. KEY POINTS: The main arguments and findings

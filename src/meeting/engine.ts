@@ -4,6 +4,7 @@ import type { LLMAdapter } from '../llm/types.js';
 import type { DataStore } from '../persistence/types.js';
 import {
   MeetingPhase,
+  type MeetingMode,
   type MeetingStatus,
   type Message,
   type PhaseTransition,
@@ -22,7 +23,7 @@ export interface MeetingConfig {
   contextImages?: { data: string; mimeType: string }[];
   participants: IAgent[];
   moderatorId?: string;
-  mode?: 'debate' | 'collaboration';
+  mode?: MeetingMode;
   workDir?: string;
   turnTimeoutMs?: number;
   maxRebuttalRounds?: number;
@@ -56,6 +57,11 @@ const PHASE_ORDER_DEBATE: MeetingPhase[] = [
   MeetingPhase.VOTING,
 ];
 
+const PHASE_ORDER_DISCUSSION: MeetingPhase[] = [
+  MeetingPhase.OPENING,
+  MeetingPhase.DELIBERATION,
+];
+
 const PHASE_ORDER_COLLAB: MeetingPhase[] = [
   MeetingPhase.OPENING,
   MeetingPhase.PLAN,
@@ -70,7 +76,7 @@ export class MeetingEngine {
   readonly contextImages: { data: string; mimeType: string }[];
   readonly participantIds: string[];
   readonly moderatorId: string;
-  readonly mode: 'debate' | 'collaboration';
+  readonly mode: MeetingMode;
 
   status: MeetingStatus = 'pending';
   currentPhase: MeetingPhase = MeetingPhase.OPENING;
@@ -177,7 +183,7 @@ export class MeetingEngine {
       workDir?: string;
       context?: string;
       moderatorId?: string;
-      mode?: 'debate' | 'collaboration';
+      mode?: MeetingMode;
       maxRebuttalRounds?: number;
       maxDeliberationRounds?: number;
       maxPlanRounds?: number;
@@ -194,7 +200,7 @@ export class MeetingEngine {
       contextImages: stored.contextImages,
       participants,
       moderatorId: options.moderatorId ?? stored.moderatorId,
-      mode: options.mode ?? (storedConfig?.mode ?? stored.mode) as 'debate' | 'collaboration',
+      mode: (options.mode ?? storedConfig?.mode ?? stored.mode) as MeetingMode,
       workDir: options.workDir ?? storedConfig?.workDir ?? undefined,
       turnTimeoutMs: options.turnTimeoutMs ?? storedConfig?.turnTimeoutMs,
       maxRebuttalRounds: options.maxRebuttalRounds ?? storedConfig?.maxRebuttalRounds,
@@ -247,6 +253,8 @@ export class MeetingEngine {
 
     if (this.mode === 'collaboration') {
       await this.runCollaboration();
+    } else if (this.mode === 'discussion') {
+      await this.runDiscussion();
     } else {
       await this.runDebate();
     }
@@ -279,7 +287,12 @@ export class MeetingEngine {
   }
 
   private phaseIdx(phase: MeetingPhase): number {
-    const order = this.mode === 'collaboration' ? PHASE_ORDER_COLLAB : PHASE_ORDER_DEBATE;
+    const order =
+      this.mode === 'collaboration'
+        ? PHASE_ORDER_COLLAB
+        : this.mode === 'discussion'
+          ? PHASE_ORDER_DISCUSSION
+          : PHASE_ORDER_DEBATE;
     return order.indexOf(phase);
   }
 
@@ -341,6 +354,20 @@ export class MeetingEngine {
     if (this.shouldEnterPhase(MeetingPhase.VOTING)) {
       await this.advancePhase(MeetingPhase.VOTING);
       await this.runVoting();
+    }
+  }
+
+  private async runDiscussion(): Promise<void> {
+    // OPENING
+    if (this.shouldEnterPhase(MeetingPhase.OPENING)) {
+      await this.advancePhase(MeetingPhase.OPENING);
+      await this.runOpening();
+      if (this.aborted) return;
+    }
+
+    // DELIBERATION
+    if (this.shouldEnterPhase(MeetingPhase.DELIBERATION)) {
+      await this.runDeliberation();
     }
   }
 
@@ -627,7 +654,7 @@ export class MeetingEngine {
       };
     }
 
-    if (this.mode !== 'collaboration') {
+    if (this.mode === 'debate') {
       const voteTally = this.summarizer.parseVotes(
         this.transcript
           .filter((m) => m.phase === MeetingPhase.VOTING)

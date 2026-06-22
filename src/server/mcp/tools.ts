@@ -173,6 +173,7 @@ async function handleResumeMeeting(input: ResumeMeetingInput, ctx: ToolContext) 
     checkpointStore: ctx.store,
     workDir: input.workDir,
     context: input.context,
+    mode: input.mode,
     turnTimeoutMs: input.turnTimeoutMs,
     maxRebuttalRounds: input.maxRebuttalRounds,
     maxDeliberationRounds: input.maxDeliberationRounds,

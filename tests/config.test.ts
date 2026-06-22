@@ -102,4 +102,36 @@ meetings:
     expect(() => loadConfig(path)).toThrow();
     unlinkSync(path);
   });
+
+  it('accepts discussion meeting mode', () => {
+    const path = writeTempConfig(
+      'discussion-config.yml',
+      `
+server:
+  port: 4200
+  host: "0.0.0.0"
+  dataDir: "./data"
+
+agents:
+  - id: facilitator
+    name: "Facilitator"
+    type: llm
+    capabilities: [general]
+    provider: openai
+    model: gpt-4o
+    apiKey: "test"
+
+meetings:
+  mode: discussion
+  turnTimeoutMs: 30000
+  maxRebuttalRounds: 1
+  maxDeliberationRounds: 5
+  defaultModerator: facilitator
+`.trim()
+    );
+
+    const config = loadConfig(path);
+    expect(config.meetings.mode).toBe('discussion');
+    unlinkSync(path);
+  });
 });

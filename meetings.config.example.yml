@@ -210,6 +210,7 @@ agents:
     endpoint: "${LMSTUDIO_ENDPOINT:-http://127.0.0.1:1234/v1}"
 
 meetings:
+  # mode: debate | discussion | collaboration
   mode: debate
   turnTimeoutMs: 60000
   maxRebuttalRounds: 2

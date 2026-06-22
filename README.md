@@ -55,7 +55,7 @@ Open **http://localhost:4200** — the web UI has **quick-start templates** (Cod
 
 ## How it works
 
-Agent Meetings runs a **long-lived server** that agents register with. When you schedule a meeting, the server picks up the topic and the participants, then runs a structured debate through a fixed sequence of phases. Each phase has a specific purpose and turn-taking rule. The output is a full transcript plus a structured summary.
+Agent Meetings runs a **long-lived server** that agents register with. When you schedule a meeting, the server picks up the topic and the participants, then runs a debate, open discussion, or collaboration workflow. The output is a full transcript plus a structured summary.
 
 ### Architecture
 
@@ -246,13 +246,14 @@ This means you can write an agent in any language. It just needs to open a WebSo
 
 ---
 
-### How a meeting works (debate phases)
+### How a meeting works (meeting modes)
 
-When a meeting starts, it moves through a fixed sequence of phases. Each phase has a goal and a turn-taking rule.
+When a meeting starts, it moves through the phase flow for its selected mode. Use `discussion` for natural free-form meetings, `debate` when you explicitly want positions and challenge rounds, and `collaboration` when builder agents should plan and produce files.
 
 ```
-schedule → PENDING → start → OPENING → POSITION → REBUTTAL ─┬→ DELIBERATION ─┬→ VOTING → SUMMARY → CONCLUDED
-                   cancel                                      └──────────────────────────┘
+debate:      OPENING → POSITION → REBUTTAL → DELIBERATION → VOTING → SUMMARY → CONCLUDED
+discussion:  OPENING → DELIBERATION → SUMMARY → CONCLUDED
+collab:      OPENING → PLAN → BUILD → REVIEW → SUMMARY → CONCLUDED
 ```
 
 #### Phase details
@@ -261,7 +262,7 @@ schedule → PENDING → start → OPENING → POSITION → REBUTTAL ─┬→ D
 
 **POSITION** — Round-robin. Each agent states their position on the topic. One round. Prompt: *"What is your position on [topic]? State your reasoning clearly."*
 
-**REBUTTAL** — Round-robin. Each agent responds to the positions already stated, pointing out weaknesses and defending their own view. Configurable number of rounds (`maxRebuttalRounds`, default 1). Prompt: *"You have heard the positions stated so far. Please offer your rebuttal..."*
+**REBUTTAL** — Debate mode only. Round-robin response rounds where agents may challenge claims they genuinely disagree with, acknowledge agreement, or add nuance. Configurable number of rounds (`maxRebuttalRounds`, default 1).
 
 **DELIBERATION** — Free-form discussion in fixed round-robin rounds. Each configured deliberation round gives every participant one turn. Capped at `maxDeliberationRounds` (default 3). Prompt: *"The floor is open for deliberation..."*
 
@@ -533,7 +534,7 @@ OPENING → PLAN → BUILD → REVIEW → SUMMARY → CONCLUDED
 - **REVIEW** — agents review what the team built and suggest improvements
 - Summary focuses on deliverables and decisions, not consensus and votes
 
-The `--work-dir` flag gives subprocess agents a shared directory — Claude Code and OpenClaw see each other's files and can build on previous work. Default mode is `debate` (structured discussion with positions, rebuttals, and voting).
+The `--work-dir` flag gives subprocess agents a shared directory — Claude Code and OpenClaw see each other's files and can build on previous work. Default mode is `debate` (structured discussion with positions, response rounds, and voting); use `discussion` for freer conversation.
 
 #### Git worktree isolation
 
@@ -703,7 +704,7 @@ Then open **`http://127.0.0.1:4200/`** in a browser. The web console provides:
 - **Quick-start templates** — one-click presets for Code Review, Brainstorming, and Architecture Planning that fill in agents, topic, context, mode, and settings
 - **Agent selection** — click chips to pick participants (color-coded: purple=LLM, orange=browser, green=subprocess, yellow=protocol)
 - **Topic & context** — type or upload a `.txt`/`.md`/`.pdf`/`.docx` file
-- **Mode toggle** — debate or collaboration
+- **Mode toggle** — debate, discussion, or collaboration
 - **Working directory** — shared folder for agents to build in, with directory browser and git worktree isolation option
 - **Settings** — rebuttal rounds, deliberation rounds, plan/build/review rounds, max total rounds, timeout, moderator
 - **Live transcript** — messages stream in real time via WebSocket with phase dividers and colored avatars
@@ -759,7 +760,7 @@ LLM-specific fields:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `mode` | `debate` \| `collaboration` | `debate` | Meeting mode — debate for structured discussion, collaboration for planning + building |
+| `mode` | `debate` \| `discussion` \| `collaboration` | `debate` | Meeting mode — discussion for free-form meetings, debate for structured challenge rounds, collaboration for planning + building |
 | `turnTimeoutMs` | number | 60000 | Max time an agent has to respond to a turn |
 | `maxRebuttalRounds` | number | 1 | How many rounds of rebuttal before deliberation |
 | `maxDeliberationRounds` | number | 3 | How many full round-robin deliberation rounds |
@@ -786,7 +787,7 @@ agent-meetings run -t <topic> -a <agent-ids> [options]
   -m, --moderator <id>         Agent ID to act as moderator
   -x, --context <text>         Background context (text or path to a file)
   -c, --config <path>          Path to config file (default: ./meetings.config.yml)
-  --mode <mode>                Meeting mode: debate (default) or collaboration
+  --mode <mode>                Meeting mode: debate (default), discussion, or collaboration
   --work-dir <path>            Shared working directory for agents to build in (collaboration mode)
   --worktree                   Create an isolated git worktree as the working directory
   --turn-timeout <ms>          Turn timeout in ms (default: 60000)

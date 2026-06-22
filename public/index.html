@@ -288,6 +288,7 @@
       <label>Meeting Mode</label>
       <div class="mode-toggle" id="mode-toggle">
         <button data-mode="debate" class="active">Debate</button>
+        <button data-mode="discussion">Discussion</button>
         <button data-mode="collaboration">Collaboration</button>
       </div>
     </div>
@@ -404,14 +405,14 @@ const TEMPLATES = [
     label: 'Brainstorming',
     topic: 'Brainstorm creative solutions and ideas. Think outside the box and explore unconventional approaches. Generate as many diverse ideas as possible.',
     context: 'Ground rules:\n- No idea is too wild — quantity over quality in the first pass\n- Build on each other\'s suggestions\n- Consider the problem from multiple angles: user, business, technical, ethical\n- Identify the top 3 most promising ideas at the end',
-    mode: 'collaboration',
+    mode: 'discussion',
     slots: [
       { capability: 'creative', desc: 'creative thinker' },
       { capability: 'brainstorming', desc: 'idea generator' },
       { capability: 'general', desc: 'generalist' },
     ],
     moderatorPreference: { capability: 'general' },
-    settings: { rebuttal: 2, deliberation: 3, plan: 2, build: 1, review: 1, total: 50, timeout: 60000 },
+    settings: { rebuttal: 0, deliberation: 4, plan: 1, build: 1, review: 1, total: 50, timeout: 60000 },
   },
   {
     id: 'architecture',

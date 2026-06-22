@@ -87,6 +87,7 @@ agents:
 
   yaml += `
 meetings:
+  # mode: debate | discussion | collaboration
   mode: debate
   turnTimeoutMs: 60000
   maxRebuttalRounds: 2

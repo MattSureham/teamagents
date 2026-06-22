@@ -80,9 +80,9 @@ export class LLMAgent implements IAgent {
       case 'position':
         return 'State your position on the topic clearly. Explain your reasoning and what evidence or principles support your view.';
       case 'rebuttal':
-        return 'Respond to the positions stated by other participants. Point out weaknesses, offer counterarguments, and defend your own position where challenged.';
+        return 'Respond to the positions stated by other participants. Challenge claims you genuinely disagree with, but do not invent disagreement. If you mostly agree, say so and add useful nuance, caveats, or open questions.';
       case 'deliberation':
-        return 'Free-form discussion. Raise points you think are important, respond to others, and work toward consensus. If you have nothing new to add, you may pass.';
+        return 'Open discussion. Raise points you think are important, ask questions, build on others, resolve disagreements, and work toward consensus. Agreement is a valid contribution when it advances the discussion; if you have nothing meaningful to add, you may pass.';
       case 'voting':
         return 'Cast your vote on the question presented. State your vote clearly and briefly justify it.';
       case 'plan':

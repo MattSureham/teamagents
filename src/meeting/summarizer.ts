@@ -1,4 +1,4 @@
-import type { MeetingSummary } from './types.js';
+import type { MeetingMode, MeetingSummary } from './types.js';
 import type { LLMAdapter } from '../llm/types.js';
 import type { IAgent } from '../agent/types.js';
 
@@ -14,7 +14,7 @@ export class Summarizer {
     context: string,
     transcript: { authorName: string; content: string }[],
     participants: IAgent[],
-    mode: 'debate' | 'collaboration' = 'debate'
+    mode: MeetingMode = 'debate'
   ): Promise<MeetingSummary> {
     if (this.adapter) {
       return this.llmSummary(topic, context, transcript, participants, mode);
@@ -27,7 +27,7 @@ export class Summarizer {
     context: string,
     transcript: { authorName: string; content: string }[],
     participants: IAgent[],
-    mode: 'debate' | 'collaboration'
+    mode: MeetingMode
   ): Promise<MeetingSummary> {
     const transcriptText = transcript
       .map((m) => `[${m.authorName}]: ${m.content}`)
@@ -47,7 +47,18 @@ export class Summarizer {
           '  "decisions": ["string — key technical and design decisions made"]',
           '}',
         ].join('\n')
-      : [
+      : mode === 'discussion'
+        ? [
+            'You produce structured open-discussion summaries in JSON format.',
+            'Output ONLY valid JSON matching this schema:',
+            '{',
+            '  "consensus": "string — what the group converged on, or the current state of the discussion",',
+            '  "keyPoints": ["string — main ideas, trade-offs, useful questions, and findings"],',
+            '  "dissentingViews": ["string — unresolved questions or meaningful remaining disagreements"],',
+            '  "actionItems": ["string — concrete follow-up tasks"]',
+            '}',
+          ].join('\n')
+        : [
           'You produce structured meeting summaries in JSON format.',
           'Output ONLY valid JSON matching this schema:',
           '{',
@@ -96,7 +107,7 @@ export class Summarizer {
     }
   }
 
-  private fallbackSummary(participants: IAgent[], mode: 'debate' | 'collaboration' = 'debate'): MeetingSummary {
+  private fallbackSummary(participants: IAgent[], mode: MeetingMode = 'debate'): MeetingSummary {
     return {
       consensus: mode === 'collaboration'
         ? 'Project completed (no LLM available for automated summary).'

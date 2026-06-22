@@ -14,6 +14,8 @@ export enum MeetingPhase {
   CONCLUDED = 'concluded',
 }
 
+export type MeetingMode = 'debate' | 'discussion' | 'collaboration';
+
 /** @deprecated Use MeetingPhase */
 export const DebatePhase = MeetingPhase;
 export type DebatePhase = MeetingPhase;

@@ -179,6 +179,7 @@ export function resumeCommand(): Command {
         plan: 'PLAN — agents propose approach',
         build: 'BUILD — agents implement',
         review: 'REVIEW — agents review output',
+        wrapup: 'WRAP-UP — final positions',
         summary: 'SUMMARY — final recap',
         concluded: 'CONCLUDED',
       };

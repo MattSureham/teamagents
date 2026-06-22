@@ -331,7 +331,7 @@
       <div><label>Plan Rounds</label><input type="number" id="plan-rounds" value="1" min="0" max="20"></div>
       <div><label>Build Rounds</label><input type="number" id="build-rounds" value="3" min="0" max="20"></div>
       <div><label>Review Rounds</label><input type="number" id="review-rounds" value="1" min="0" max="20"></div>
-      <div><label>Max Total Rounds</label><input type="number" id="max-total-rounds" value="50" min="1" max="100"></div>
+      <div><label>Max Rounds Before Wrap-Up</label><input type="number" id="max-total-rounds" value="50" min="1" max="100"></div>
       <div><label>Turn Timeout (ms)</label><input type="number" id="turn-timeout" value="60000" min="5000" step="5000"></div>
     </div>
 
@@ -1100,6 +1100,7 @@ const PHASE_LABELS = {
   plan: 'PLAN — Proposing Approach',
   build: 'BUILD — Implementation',
   review: 'REVIEW — Reviewing Output',
+  wrapup: 'WRAP-UP — Final Positions',
   summary: 'SUMMARY',
   concluded: 'CONCLUDED',
 };

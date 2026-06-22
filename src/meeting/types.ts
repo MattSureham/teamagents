@@ -10,6 +10,7 @@ export enum MeetingPhase {
   BUILD = 'build',
   REVIEW = 'review',
   // Shared
+  WRAPUP = 'wrapup',
   SUMMARY = 'summary',
   CONCLUDED = 'concluded',
 }

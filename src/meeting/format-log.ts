@@ -24,6 +24,7 @@ export function formatLog(engine: MeetingEngine): string {
     plan: '═══ PLANNING ═══',
     build: '═══ BUILD ═══',
     review: '═══ REVIEW ═══',
+    wrapup: '═══ WRAP-UP ═══',
     summary: '═══ SUMMARY ═══',
     concluded: '═══ CONCLUDED ═══',
   };

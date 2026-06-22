@@ -55,6 +55,7 @@ describe('MeetingEngine', () => {
     expect(phases).toContain('opening');
     expect(phases).toContain('position');
     expect(phases).toContain('rebuttal');
+    expect(phases).toContain('wrapup');
     expect(phases).toContain('summary');
     expect(phases).toContain('concluded');
   });
@@ -190,6 +191,7 @@ describe('MeetingEngine', () => {
     const phases = engine.transcript.map((m) => m.phase);
     expect(phases).toContain('opening');
     expect(phases).toContain('deliberation');
+    expect(phases).toContain('wrapup');
     expect(phases).toContain('summary');
     expect(phases).not.toContain('position');
     expect(phases).not.toContain('rebuttal');
@@ -200,6 +202,36 @@ describe('MeetingEngine', () => {
     );
     expect(deliberationMessages).toHaveLength(4);
     expect(engine.summary?.voteTally).toBeUndefined();
+  });
+
+  it('runs wrap-up before summary when max total rounds is exhausted', async () => {
+    const agents = [
+      new MockAgent('a1', 'Alice', ['general']),
+      new MockAgent('a2', 'Bob', ['general']),
+    ];
+
+    const engine = new MeetingEngine({
+      topic: 'Choose a final 4-leg plan',
+      context: '',
+      participants: agents,
+      mode: 'discussion',
+      maxDeliberationRounds: 5,
+      maxTotalRounds: 1,
+    });
+
+    await engine.start();
+
+    const phases = engine.transcript.map((m) => m.phase);
+    const wrapupIdx = phases.indexOf('wrapup');
+    const summaryIdx = phases.indexOf('summary');
+    expect(wrapupIdx).toBeGreaterThan(-1);
+    expect(summaryIdx).toBeGreaterThan(wrapupIdx);
+
+    const wrapupMessages = engine.transcript.filter(
+      (m) => m.phase === 'wrapup' && m.authorId !== '__system_moderator__'
+    );
+    expect(wrapupMessages.map((m) => m.authorId)).toEqual(['a1', 'a2']);
+    expect(engine.toStoredMeeting().totalRounds).toBe(1);
   });
 
   it('uses configured speaker order for each round', async () => {

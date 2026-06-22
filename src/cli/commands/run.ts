@@ -28,7 +28,7 @@ export function runCommand(): Command {
     .option('--plan-rounds <n>', 'Max plan rounds (collaboration)', '1')
     .option('--build-rounds <n>', 'Max build rounds (collaboration)', '3')
     .option('--review-rounds <n>', 'Max review rounds (collaboration)', '1')
-    .option('--total-rounds <n>', 'Max total rounds before summary', '50')
+    .option('--total-rounds <n>', 'Max total rounds before wrap-up', '50')
     .option('--mode <mode>', 'Meeting mode: debate, discussion, or collaboration', 'debate')
     .option('--speaker-order <ids>', 'Comma-separated agent IDs to speak first/in order')
     .option('--work-dir <path>', 'Shared working directory for agents to build in (collaboration mode)')
@@ -195,6 +195,7 @@ export function runCommand(): Command {
         plan: 'PLAN — agents propose approach',
         build: 'BUILD — agents implement',
         review: 'REVIEW — agents review output',
+        wrapup: 'WRAP-UP — final positions',
         summary: 'SUMMARY — final recap',
         concluded: 'CONCLUDED',
       };

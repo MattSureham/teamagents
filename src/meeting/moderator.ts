@@ -105,6 +105,29 @@ export class Moderator {
     return `VOTE: Regarding "${topic}" — ${question} Please respond with VOTE: YES or VOTE: NO and a brief justification.`;
   }
 
+  buildWrapupPrompt(topic: string, agentName: string, mode: MeetingMode): string {
+    const modeInstruction = mode === 'collaboration'
+      ? [
+          'State the final project outcome from your perspective.',
+          'List the concrete deliverables, decisions, and any unfinished work that should continue next time.',
+        ]
+      : [
+          'State your final answer or recommendation.',
+          'If the user asked for a concrete plan, picks, ranking, or方案, provide the exact final version you believe is best.',
+        ];
+
+    return [
+      `WRAP-UP PHASE — "${topic}"`,
+      '',
+      `You are ${agentName}. This is your final turn before the moderator summary.`,
+      '',
+      'You must wrap up even if the discussion is incomplete.',
+      ...modeInstruction,
+      'If you disagree with others, state your own final position clearly and name the unresolved disagreement.',
+      'Do not defer the core answer to a future round. Put unfinished research or caveats in a short "continue next time" note.',
+    ].join('\n');
+  }
+
   // ── Collaboration prompts ──
 
   buildPlanPrompt(topic: string, agentName: string): string {

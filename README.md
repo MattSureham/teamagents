@@ -251,9 +251,9 @@ This means you can write an agent in any language. It just needs to open a WebSo
 When a meeting starts, it moves through the phase flow for its selected mode. Use `discussion` for natural free-form meetings, `debate` when you explicitly want positions and challenge rounds, and `collaboration` when builder agents should plan and produce files.
 
 ```
-debate:      OPENING → POSITION → REBUTTAL → DELIBERATION → VOTING → SUMMARY → CONCLUDED
-discussion:  OPENING → DELIBERATION → SUMMARY → CONCLUDED
-collab:      OPENING → PLAN → BUILD → REVIEW → SUMMARY → CONCLUDED
+debate:      OPENING → POSITION → REBUTTAL → DELIBERATION → VOTING → WRAP-UP → SUMMARY → CONCLUDED
+discussion:  OPENING → DELIBERATION → WRAP-UP → SUMMARY → CONCLUDED
+collab:      OPENING → PLAN → BUILD → REVIEW → WRAP-UP → SUMMARY → CONCLUDED
 ```
 
 #### Phase details
@@ -267,6 +267,8 @@ collab:      OPENING → PLAN → BUILD → REVIEW → SUMMARY → CONCLUDED
 **DELIBERATION** — Free-form discussion in fixed round-robin rounds. Each configured deliberation round gives every participant one turn. Capped at `maxDeliberationRounds` (default 3). Prompt: *"The floor is open for deliberation..."*
 
 **VOTING** — Each agent is asked a structured yes/no question about the emerging consensus. Responses are parsed for "VOTE: YES" / "VOTE: NO" to produce a tally.
+
+**WRAP-UP** — Final round before summary. Every participant must state their final answer, recommendation, or方案, even if discussion is incomplete. Unfinished work is explicitly left for a later continuation.
 
 **SUMMARY** — The moderator (or a configured LLM) reads the full transcript and produces a structured summary:
 - **Consensus** — what was agreed upon
@@ -767,7 +769,7 @@ LLM-specific fields:
 | `maxPlanRounds` | number | 1 | Collaboration only — plan iteration rounds |
 | `maxBuildRounds` | number | 3 | Collaboration only — build iteration rounds |
 | `maxReviewRounds` | number | 1 | Collaboration only — review iteration rounds |
-| `maxTotalRounds` | number | 50 | Max discussion/build rounds before moving to summary |
+| `maxTotalRounds` | number | 50 | Max discussion/build rounds before forcing wrap-up |
 | `speakerOrder` | string[] | selected agent order | Optional speaking order. Listed agent IDs speak first; unlisted selected agents are appended. Useful for putting a vision agent first so it can describe images for everyone. |
 | `defaultModerator` | string | — | Agent ID to use as moderator if none specified in the meeting |
 | `worktree.enabled` | boolean | false | Always isolate in git worktrees |
@@ -798,7 +800,7 @@ agent-meetings run -t <topic> -a <agent-ids> [options]
   --plan-rounds <n>            Max plan rounds in collaboration mode (default: 1)
   --build-rounds <n>           Max build rounds in collaboration mode (default: 3)
   --review-rounds <n>          Max review rounds in collaboration mode (default: 1)
-  --total-rounds <n>           Max total rounds before summary (default: 50)
+  --total-rounds <n>           Max total rounds before wrap-up (default: 50)
   --no-stream                  Only show summary, not live transcript
 
 agent-meetings resume <meeting-id> [options]

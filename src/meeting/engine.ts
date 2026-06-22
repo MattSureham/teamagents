@@ -56,11 +56,13 @@ const PHASE_ORDER_DEBATE: MeetingPhase[] = [
   MeetingPhase.REBUTTAL,
   MeetingPhase.DELIBERATION,
   MeetingPhase.VOTING,
+  MeetingPhase.WRAPUP,
 ];
 
 const PHASE_ORDER_DISCUSSION: MeetingPhase[] = [
   MeetingPhase.OPENING,
   MeetingPhase.DELIBERATION,
+  MeetingPhase.WRAPUP,
 ];
 
 const PHASE_ORDER_COLLAB: MeetingPhase[] = [
@@ -68,6 +70,7 @@ const PHASE_ORDER_COLLAB: MeetingPhase[] = [
   MeetingPhase.PLAN,
   MeetingPhase.BUILD,
   MeetingPhase.REVIEW,
+  MeetingPhase.WRAPUP,
 ];
 
 // `toStoredMeeting` appends a human-readable "[N image(s) included in context]"
@@ -275,6 +278,12 @@ export class MeetingEngine {
 
     if (this.aborted) return;
 
+    if (this.shouldEnterPhase(MeetingPhase.WRAPUP)) {
+      await this.advancePhase(MeetingPhase.WRAPUP);
+      await this.runRoundRobin(MeetingPhase.WRAPUP);
+    }
+    if (this.aborted) return;
+
     await this.advancePhase(MeetingPhase.SUMMARY);
     try {
       await this.runSummary();
@@ -307,7 +316,8 @@ export class MeetingEngine {
         : this.mode === 'discussion'
           ? PHASE_ORDER_DISCUSSION
           : PHASE_ORDER_DEBATE;
-    return order.indexOf(phase);
+    const idx = order.indexOf(phase);
+    return idx === -1 ? order.length : idx;
   }
 
   private shouldEnterPhase(phase: MeetingPhase): boolean {
@@ -600,6 +610,8 @@ export class MeetingEngine {
         currentPrompt = this.moderator.buildPlanPrompt(this.topic, speaker.name);
       } else if (phase === MeetingPhase.BUILD) {
         currentPrompt = this.moderator.buildBuildPrompt(this.topic, speaker.name);
+      } else if (phase === MeetingPhase.WRAPUP) {
+        currentPrompt = this.moderator.buildWrapupPrompt(this.topic, speaker.name, this.mode);
       } else {
         currentPrompt = this.moderator.buildReviewPrompt(this.topic, speaker.name);
       }

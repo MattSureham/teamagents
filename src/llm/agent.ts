@@ -91,6 +91,8 @@ export class LLMAgent implements IAgent {
         return 'The builders are implementing now. You are an advisor — provide feedback, guidance, and suggestions. Do NOT emit tool calls or code blocks pretending to execute commands; you are text-only.';
       case 'review':
         return 'Review what the team has built. What works well? What needs improvement? What should happen next? Be constructive and specific.';
+      case 'wrapup':
+        return 'Final wrap-up. Give your concrete final answer, recommendation, or方案. If work remains unfinished, separate it into a brief continue-next-time note, but do not avoid the core answer.';
       case 'summary':
         return 'The meeting is concluding. The moderator will summarize.';
       case 'concluded':

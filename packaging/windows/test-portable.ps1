@@ -94,8 +94,8 @@ try {
     throw "Portable server failed health check.`n$serverOutput`n$serverError"
   }
 
-  $home = Invoke-WebRequest 'http://127.0.0.1:4200/' -UseBasicParsing -TimeoutSec 5
-  if ($home.StatusCode -ne 200 -or $home.Content -notmatch 'TeamAgents') {
+  $homeResponse = Invoke-WebRequest 'http://127.0.0.1:4200/' -UseBasicParsing -TimeoutSec 5
+  if ($homeResponse.StatusCode -ne 200 -or $homeResponse.Content -notmatch 'TeamAgents') {
     throw 'Portable web UI smoke test failed.'
   }
   if (-not (Test-Path (Join-Path $root 'data\meetings'))) {

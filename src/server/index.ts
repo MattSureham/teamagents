@@ -11,6 +11,7 @@ export interface ServerInstance {
   start(): Promise<void>;
   stop(): Promise<void>;
   registry: AgentRegistry;
+  url: string;
 }
 
 // Prevent silent process death from unhandled rejections or uncaught exceptions.
@@ -39,13 +40,17 @@ export async function createServer(configPath?: string): Promise<ServerInstance>
 
   const authToken = config.server.wsToken ?? randomBytes(16).toString('hex');
   const wss = setupWebSocket(httpServer, registry, meetingEvents, authToken);
+  const displayHost = config.server.host === '0.0.0.0' || config.server.host === '::'
+    ? 'localhost'
+    : config.server.host;
+  const urlHost = displayHost.includes(':') ? `[${displayHost}]` : displayHost;
+  const url = `http://${urlHost}:${config.server.port}`;
 
   return {
     start(): Promise<void> {
       return new Promise((resolve) => {
         httpServer.listen(config.server.port, config.server.host, () => {
-          const displayHost = config.server.host === '0.0.0.0' ? 'localhost' : config.server.host;
-          console.log(`Agent Meetings server listening on http://${displayHost}:${config.server.port}`);
+          console.log(`Agent Meetings server listening on ${url}`);
           console.log(`WebSocket token: ${authToken}`);
           resolve();
         });
@@ -63,5 +68,6 @@ export async function createServer(configPath?: string): Promise<ServerInstance>
     },
 
     registry,
+    url,
   };
 }

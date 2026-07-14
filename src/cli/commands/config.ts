@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { loadConfig } from '../../config/loader.js';
 import { ProviderRegistry } from '../../server/provider-registry.js';
+import { getDefaultConfigPath } from '../../utils/runtime-paths.js';
 
 export function configCommand(): Command {
   const cmd = new Command('config')
@@ -9,7 +10,7 @@ export function configCommand(): Command {
   cmd
     .command('validate')
     .description('Validate a config file')
-    .option('-c, --config <path>', 'Path to config file', './meetings.config.yml')
+    .option('-c, --config <path>', 'Path to config file', getDefaultConfigPath())
     .action(async (options) => {
       try {
         loadConfig(options.config);
@@ -23,7 +24,7 @@ export function configCommand(): Command {
   cmd
     .command('show')
     .description('Show the current effective config')
-    .option('-c, --config <path>', 'Path to config file', './meetings.config.yml')
+    .option('-c, --config <path>', 'Path to config file', getDefaultConfigPath())
     .action(async (options) => {
       try {
         const config = loadConfig(options.config);

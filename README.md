@@ -47,6 +47,20 @@ docker run -p 4200:4200 \
 
 Follow the [Deployment Guide](#deployment-guide) below for step-by-step setup on macOS, Linux, or Windows.
 
+### Windows portable ZIP
+
+The Windows 10/11 x64 portable build includes Node.js and Playwright Chromium.
+Download the `agent-meetings-v*-windows-x64-portable.zip` artifact from the
+**Windows Portable** GitHub Actions workflow, extract it to a writable folder,
+then run `browser-login.cmd` once and double-click `start-agent-meetings.cmd`.
+No Node.js installation or `npm install` is required.
+
+Maintainers can build the same archive on a Windows x64 host:
+
+```powershell
+.\packaging\windows\build-portable.ps1
+```
+
 ### Once running
 
 Open **http://localhost:4200** — the web UI has **quick-start templates** (Code Review, Brainstorming, Architecture Planning) that fill in agents, topic, context, mode, and settings in one click. Or configure everything manually and press Start Meeting.

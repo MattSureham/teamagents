@@ -56,14 +56,15 @@ agents:
     timeoutMs: 1800000
 
 
+  # Set HERMES_HOME and HERMES_PYTHON in .env before enabling this agent.
   - id: hermes
     name: "Hermes"
     type: subprocess
     tool: generic
     capabilities: [coding, building, debugging, architecture]
-    command: /Users/matthew/hermes-agent/venv/bin/python
-    args: ["/Users/matthew/hermes-agent/run_agent.py", "-q", "{prompt}", "--max_turns", "15", "-e", "development"]
-    cwd: /Users/matthew/hermes-agent
+    command: "${HERMES_PYTHON:-python3}"
+    args: ["run_agent.py", "-q", "{prompt}", "--max_turns", "15", "-e", "development"]
+    cwd: "${HERMES_HOME:-./hermes-agent}"
     timeoutMs: 1800000
   - id: codex
     name: "Codex"

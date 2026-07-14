@@ -1,0 +1,54 @@
+server:
+  port: 4200
+  host: "127.0.0.1"
+  dataDir: "./data"
+
+agents:
+  - id: chatgpt
+    name: "ChatGPT"
+    type: browser
+    capabilities: [general, creative, brainstorming, coding]
+    site: chatgpt
+    timeoutMs: 120000
+
+  - id: claude-web
+    name: "Claude Web"
+    type: browser
+    capabilities: [analysis, reasoning, writing, coding]
+    site: claude
+    timeoutMs: 120000
+
+  - id: gemini-web
+    name: "Gemini Web"
+    type: browser
+    capabilities: [general, coding, multimodal]
+    site: gemini
+    timeoutMs: 120000
+
+  - id: deepseek-web
+    name: "DeepSeek Web"
+    type: browser
+    capabilities: [coding, analysis, architecture]
+    site: deepseek
+    timeoutMs: 120000
+
+  # API and subprocess agents can be added here. See README-Windows.md and
+  # config/meetings.config.example.yml for examples.
+
+meetings:
+  mode: debate
+  turnTimeoutMs: 60000
+  maxRebuttalRounds: 2
+  maxDeliberationRounds: 3
+  maxPlanRounds: 1
+  maxBuildRounds: 3
+  maxReviewRounds: 1
+  maxTotalRounds: 50
+  defaultModerator: chatgpt
+  worktree:
+    enabled: false
+
+  presets:
+    browser:
+      agents: [chatgpt, claude-web, gemini-web, deepseek-web]
+      moderator: chatgpt

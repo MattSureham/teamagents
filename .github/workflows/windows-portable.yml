@@ -1,0 +1,46 @@
+name: Windows Portable
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Build portable archive
+        shell: pwsh
+        run: ./packaging/windows/build-portable.ps1
+
+      - name: Smoke test portable archive
+        shell: pwsh
+        run: |
+          $archive = Get-ChildItem ./release/agent-meetings-v*-windows-x64-portable.zip | Select-Object -First 1
+          if (-not $archive) { throw 'Portable archive was not created.' }
+          ./packaging/windows/test-portable.ps1 -ArchivePath $archive.FullName
+
+      - name: Upload portable archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-meetings-windows-x64-portable
+          path: |
+            release/agent-meetings-v*-windows-x64-portable.zip
+            release/agent-meetings-v*-windows-x64-portable.zip.sha256
+          if-no-files-found: error
+          retention-days: 14

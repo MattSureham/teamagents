@@ -1,6 +1,6 @@
 {
   "name": "agent-meetings",
-"version": "2.0.0",
+  "version": "2.0.0",
   "description": "A framework for enabling technical meetings and communication between AI agents and LLMs",
   "main": "dist/index.js",
   "type": "module",
@@ -32,6 +32,7 @@
   "author": "Matt Sureham",
   "license": "MIT",
   "devDependencies": {
+    "@types/cross-spawn": "^6.0.6",
     "@types/node": "^20.19.39",
     "@types/ws": "^8.18.1",
     "tsx": "^4.21.0",
@@ -41,6 +42,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "commander": "^14.0.3",
+    "cross-spawn": "^7.0.6",
     "mammoth": "^1.12.0",
     "pdfjs-dist": "^5.7.284",
     "playwright": "^1.59.1",

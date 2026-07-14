@@ -1,9 +1,10 @@
 import { Command } from 'commander';
 import { writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { execSync } from 'node:child_process';
 import { ProviderRegistry } from '../../server/provider-registry.js';
 import { LLM_PROVIDERS, SUBPROCESS_TOOLS } from '../../config/provider-catalog.js';
+import { openUrl } from '../../utils/open-url.js';
+import { getDefaultConfigPath } from '../../utils/runtime-paths.js';
 
 const API_KEY_VARS: Array<{ provider: string; vars: string[] }> = [
   { provider: 'deepseek', vars: ['DEEPSEEK_API_KEY'] },
@@ -107,22 +108,6 @@ meetings:
   return yaml;
 }
 
-function openBrowser(url: string): void {
-  const platform = process.platform;
-  try {
-    if (platform === 'darwin') {
-      execSync(`open "${url}"`);
-    } else if (platform === 'win32') {
-      execSync(`start "" "${url}"`);
-    } else {
-      execSync(`xdg-open "${url}"`);
-    }
-    console.log(`Opened ${url} in your browser.`);
-  } catch {
-    console.log(`Open ${url} in your browser to get started.`);
-  }
-}
-
 export function setupCommand(): Command {
   return new Command('setup')
     .description('Detect tools and API keys, write a starter config, and start the server')
@@ -166,7 +151,7 @@ export function setupCommand(): Command {
         return;
       }
 
-      const configPath = resolve('./meetings.config.yml');
+      const configPath = resolve(getDefaultConfigPath());
       if (existsSync(configPath)) {
         console.warn(`\n⚠  ${configPath} already exists and will be overwritten.`);
       }
@@ -180,7 +165,12 @@ export function setupCommand(): Command {
       await server.start();
 
       if (options.open) {
-        openBrowser(`http://localhost:${options.port}`);
+        try {
+          openUrl(server.url);
+          console.log(`Opening ${server.url} in your browser.`);
+        } catch {
+          console.log(`Open ${server.url} in your browser to get started.`);
+        }
       }
 
       console.log('\n✓ Setup complete. The server is running. Press Ctrl+C to stop.');

@@ -7,12 +7,13 @@ import { JsonFileStore } from '../../persistence/json-store.js';
 import { MeetingEngine } from '../../meeting/engine.js';
 import { formatLog } from '../../meeting/format-log.js';
 import type { IAgent } from '../../agent/types.js';
+import { getDefaultConfigPath } from '../../utils/runtime-paths.js';
 
 export function resumeCommand(): Command {
   return new Command('resume')
     .description('Resume an interrupted meeting')
     .argument('<meeting-id>', 'Meeting ID to resume')
-    .option('-c, --config <path>', 'Path to config file', './meetings.config.yml')
+    .option('-c, --config <path>', 'Path to config file', getDefaultConfigPath())
     .option('-s, --server <url>', 'Delegate to a running server')
     .option('--context <string>', 'Override or add context for the continuation')
     .option('--moderator <id>', 'Override the moderator agent')

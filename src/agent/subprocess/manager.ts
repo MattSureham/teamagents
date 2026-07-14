@@ -1,5 +1,6 @@
-import { spawn, type ChildProcess, execSync } from 'node:child_process';
+import { execSync, spawnSync, type ChildProcess } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import crossSpawn from 'cross-spawn';
 
 export interface SpawnResult {
   stdout: string;
@@ -32,7 +33,7 @@ export class SubprocessManager {
       let timedOut = false;
       let settled = false;
 
-      const child = spawn(opts.command, opts.args, {
+      const child = crossSpawn(opts.command, opts.args, {
         cwd: opts.cwd,
         env: { ...process.env, ...opts.env },
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -126,10 +127,7 @@ export class SubprocessManager {
     const child = this.running.get(id);
     if (!child) return false;
     try {
-      child.kill('SIGTERM');
-      setTimeout(() => {
-        try { child.kill('SIGKILL'); } catch {}
-      }, 5000);
+      this.terminateProcess(child);
     } catch {
       return false;
     }
@@ -149,8 +147,24 @@ export class SubprocessManager {
 
   async shutdown(): Promise<void> {
     for (const [id, child] of this.running) {
-      try { child.kill('SIGTERM'); } catch {}
+      try { this.terminateProcess(child); } catch {}
     }
     this.running.clear();
+  }
+
+  private terminateProcess(child: ChildProcess): void {
+    if (process.platform === 'win32' && child.pid) {
+      // Kill the cmd shim and every descendant process it launched.
+      spawnSync('taskkill.exe', ['/pid', String(child.pid), '/T', '/F'], {
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      return;
+    }
+
+    child.kill('SIGTERM');
+    setTimeout(() => {
+      try { child.kill('SIGKILL'); } catch {}
+    }, 5000).unref();
   }
 }

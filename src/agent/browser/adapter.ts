@@ -1,8 +1,8 @@
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, type BrowserContext, type Page } from 'playwright';
 import type { IAgent, AgentHealth, AgentResponse, MeetingPrompt } from '../types.js';
 import type { SiteConfig } from './types.js';
+import { getAgentMeetingsHome } from '../../utils/runtime-paths.js';
 
 export interface BrowserAgentConfig {
   id: string;
@@ -129,7 +129,7 @@ export class BrowserAgent implements IAgent {
 
   private async getPage(): Promise<Page> {
     if (!this.context) {
-      const userDataDir = join(homedir(), '.agent-meetings', 'browser', this.id);
+      const userDataDir = join(getAgentMeetingsHome(), 'browser', this.id);
       this.context = await chromium.launchPersistentContext(userDataDir, {
         headless: false,
         args: [

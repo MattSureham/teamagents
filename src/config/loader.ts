@@ -4,9 +4,10 @@ import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 import type { Config, AgentDef } from './types.js';
+import { getDefaultConfigPath, getEnvFilePath } from '../utils/runtime-paths.js';
 
 function loadEnvFile(): void {
-  const envPath = resolve('.env');
+  const envPath = getEnvFilePath();
   if (!existsSync(envPath)) return;
   const lines = readFileSync(envPath, 'utf-8').split('\n');
   for (const line of lines) {
@@ -86,7 +87,7 @@ function guessEnvVar(baseUrl: string, name: string, id: string): string | null {
 export function loadConfig(path?: string): Config {
   loadEnvFile();
   loadCcSwitchEnv();
-  const configPath = resolve(path ?? './meetings.config.yml');
+  const configPath = resolve(path ?? getDefaultConfigPath());
 
   if (!existsSync(configPath)) {
     throw new Error(

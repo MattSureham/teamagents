@@ -10,6 +10,7 @@ import type { IAgent } from '../../agent/types.js';
 import { loadContext } from '../../utils/context-loader.js';
 import { WorktreeManager } from '../../worktree/manager.js';
 import type { MeetingMode } from '../../meeting/types.js';
+import { getDefaultConfigPath } from '../../utils/runtime-paths.js';
 
 const MEETING_MODES: MeetingMode[] = ['debate', 'discussion', 'collaboration'];
 
@@ -21,7 +22,7 @@ export function runCommand(): Command {
     .option('--preset <name>', 'Use a named preset from config (merges with --agents if both given)')
     .option('-m, --moderator <id>', 'Agent ID to act as moderator')
     .option('-x, --context <text>', 'Background context (text or path to a file)')
-    .option('-c, --config <path>', 'Path to config file', './meetings.config.yml')
+    .option('-c, --config <path>', 'Path to config file', getDefaultConfigPath())
     .option('--turn-timeout <ms>', 'Turn timeout in ms', '60000')
     .option('--rebuttal-rounds <n>', 'Max rebuttal rounds', '1')
     .option('--deliberation-rounds <n>', 'Max deliberation rounds (each round, every participant speaks)', '3')

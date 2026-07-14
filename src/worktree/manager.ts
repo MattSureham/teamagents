@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 export interface WorktreeOptions {
@@ -30,8 +30,8 @@ export class WorktreeManager {
       try {
         execSync(`git worktree remove --force "${dir}"`, { stdio: 'ignore' });
       } catch {
-        // If it can't be removed via git, just rm it
-        execSync(`rm -rf "${dir}"`, { stdio: 'ignore' });
+        // If it can't be removed via git, delete it without relying on a POSIX shell.
+        rmSync(dir, { recursive: true, force: true });
       }
     }
 
@@ -61,7 +61,7 @@ export class WorktreeManager {
       execSync(`git worktree remove --force "${worktreePath}"`, { stdio: 'ignore' });
     } catch {
       // If git can't remove it, force-delete
-      execSync(`rm -rf "${worktreePath}"`, { stdio: 'ignore' });
+      rmSync(worktreePath, { recursive: true, force: true });
       // Then prune the worktree reference
       try {
         execSync('git worktree prune', { stdio: 'ignore' });

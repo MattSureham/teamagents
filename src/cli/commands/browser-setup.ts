@@ -4,11 +4,12 @@ import { loadConfig } from '../../config/loader.js';
 import { AgentRegistry } from '../../server/agent-registry.js';
 import { JsonFileStore } from '../../persistence/json-store.js';
 import { BrowserAgent } from '../../agent/browser/adapter.js';
+import { getDefaultConfigPath } from '../../utils/runtime-paths.js';
 
 export function browserSetupCommand(): Command {
   return new Command('browser-setup')
     .description('Open browser windows so you can log into chat sites before a meeting')
-    .option('-c, --config <path>', 'Path to config file', './meetings.config.yml')
+    .option('-c, --config <path>', 'Path to config file', getDefaultConfigPath())
     .option('-a, --agents <ids>', 'Comma-separated browser agent IDs to set up (default: all browser agents)')
     .action(async (options) => {
       let config;

@@ -2,6 +2,12 @@
 
 A framework for running structured technical meetings and debates between AI agents and LLMs.
 
+## Collaboration Protocol
+
+Before contributing, every human and AI participant must read
+[HANDOFF.md](HANDOFF.md), the repository's canonical collaboration state and
+handoff protocol.
+
 ## Quick Start
 
 Three ways to get running — pick the one that fits:
